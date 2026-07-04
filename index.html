@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scale Studio</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-line">
+          <strong>Scale Studio</strong>
+          <em class="creator">Created by Stephanie</em>
+        </div>
+        <span id="canvasSummary">4800 × 2700 mm workspace</span>
+      </div>
+      <div class="toolbar">
+        <button class="primary" id="uploadBtn">上传</button>
+        <div class="menu-wrap">
+          <button id="exportMenuBtn" type="button" aria-haspopup="true" aria-expanded="false">导出</button>
+          <div class="export-menu" id="exportMenu">
+            <button id="exportPngBtn" type="button">导出预览 PNG</button>
+            <button id="exportCsvBtn" type="button">导出尺寸 CSV</button>
+            <div class="menu-separator"></div>
+            <button id="saveProjectBtn" type="button">保存项目 JSON</button>
+            <button id="loadProjectBtn" type="button">导入项目 JSON</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <aside class="side">
+      <div class="side-head">
+        <span>画布设置</span>
+        <button class="icon panel-toggle" id="toggleLeftBtn" title="收起画布设置" type="button">‹</button>
+      </div>
+      <div class="side-content">
+        <section class="section">
+          <h2>画布</h2>
+          <div class="fields">
+            <label>宽 mm
+              <input id="canvasW" type="number" min="100" value="4800">
+            </label>
+            <label>高 mm
+              <input id="canvasH" type="number" min="100" value="2700">
+            </label>
+            <label>等比分割
+              <input id="divisions" type="number" min="1" max="24" value="4">
+            </label>
+            <label>网格间距 mm
+              <input id="gridStep" type="number" min="5" value="100">
+            </label>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2>背景</h2>
+          <div class="fields one">
+            <div class="segmented" aria-label="画布类型">
+              <button id="gridModeBtn" class="active" type="button">网格</button>
+              <button id="solidModeBtn" type="button">纯色</button>
+            </div>
+            <div class="segmented" aria-label="背景颜色">
+              <button id="whiteBgBtn" class="active" type="button">白</button>
+              <button id="blackBgBtn" type="button">黑</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2>视图</h2>
+          <div class="fields">
+            <label>缩放
+              <input id="zoom" type="range" min="5" max="200" value="20">
+            </label>
+            <label>当前比例
+              <input id="zoomReadout" readonly value="20%">
+            </label>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2>快捷键</h2>
+          <p class="status">
+            <span class="kbd">Delete</span> 删除选中 logo<br>
+            <span class="kbd">Ctrl</span> + <span class="kbd">C</span> 复制<br>
+            <span class="kbd">Ctrl</span> + <span class="kbd">V</span> 粘贴
+          </p>
+        </section>
+      </div>
+    </aside>
+
+    <main class="canvas-wrap" id="canvasWrap">
+      <div class="stage-shell">
+        <div class="stage-frame" id="stageFrame">
+          <div class="ruler-top" id="rulerTop"></div>
+          <div class="ruler-left" id="rulerLeft"></div>
+          <div class="stage" id="stage"></div>
+        </div>
+      </div>
+    </main>
+
+    <aside class="side right">
+      <div class="side-head">
+        <button class="icon panel-toggle" id="toggleRightBtn" title="收起 Logo 面板" type="button">›</button>
+        <span>Logo 面板</span>
+      </div>
+      <div class="side-content">
+        <section class="section">
+          <h2>选中 Logo</h2>
+          <div id="selectedPanel" class="selected-empty">选择一个 logo 后，可以在这里精确调整它的实际尺寸和位置。</div>
+        </section>
+
+        <section class="section">
+          <h2>Logo 列表</h2>
+          <div class="logo-list" id="logoList"></div>
+        </section>
+      </div>
+    </aside>
+  </div>
+
+  <input class="hidden-input" id="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" multiple>
+  <input class="hidden-input" id="jsonInput" type="file" accept="application/json">
+
+  <script src="app.js"></script>
+</body>
+</html>
