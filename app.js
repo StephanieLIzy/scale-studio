@@ -3,6 +3,7 @@ const state = {
       zoom: 0.2,
       logos: [],
       selectedId: null,
+      selectedIds: [],
       clipboard: null,
       panels: { left: true, right: true }
     };
@@ -42,6 +43,8 @@ const state = {
 
     const uid = () => `logo-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const selectedLogo = () => state.logos.find(logo => logo.id === state.selectedId) || null;
+    const selectedLogos = () => state.logos.filter(logo => state.selectedIds.includes(logo.id));
+    const isSelected = id => state.selectedIds.includes(id);
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
     const normalizeAngle = value => ((value % 360) + 360) % 360;
     const MIN_ZOOM = 0.05;
@@ -149,6 +152,28 @@ const state = {
       els.exportMenuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
     }
 
+    function setSelection(ids) {
+      state.selectedIds = [...new Set(ids)].filter(id => state.logos.some(logo => logo.id === id));
+      state.selectedId = state.selectedIds.at(-1) || null;
+    }
+
+    function clearSelection() {
+      state.selectedIds = [];
+      state.selectedId = null;
+    }
+
+    function selectOnly(id) {
+      setSelection([id]);
+    }
+
+    function toggleSelection(id) {
+      if (isSelected(id)) {
+        setSelection(state.selectedIds.filter(selectedId => selectedId !== id));
+      } else {
+        setSelection([...state.selectedIds, id]);
+      }
+    }
+
     function renderGuides() {
       els.stage.querySelectorAll('.grid-line, .division-line').forEach(node => node.remove());
       els.rulerTop.innerHTML = '';
@@ -219,7 +244,7 @@ const state = {
       els.stage.querySelectorAll('.logo').forEach(node => node.remove());
       state.logos.forEach(logo => {
         const node = document.createElement('div');
-        node.className = `logo${logo.id === state.selectedId ? ' selected' : ''}`;
+        node.className = `logo${isSelected(logo.id) ? ' selected' : ''}`;
         node.dataset.id = logo.id;
         node.style.left = screen(logo.x);
         node.style.top = screen(logo.y);
@@ -248,6 +273,30 @@ const state = {
 
     function renderSelectedPanel() {
       const logo = selectedLogo();
+      const selected = selectedLogos();
+      if (selected.length > 1) {
+        els.selectedPanel.className = 'selected-empty';
+        els.selectedPanel.innerHTML = `
+          已选中 ${selected.length} 个物料。可以用方向键微调位置，按住 Shift 每次移动 10mm。
+          <div class="toolbar" style="justify-content:flex-start;margin-top:10px">
+            <button id="multiBringFrontBtn">置顶</button>
+            <button id="multiSendBackBtn">置底</button>
+            <button id="multiDeleteBtn" style="color:var(--danger)">删除</button>
+          </div>
+        `;
+        document.getElementById('multiBringFrontBtn').addEventListener('click', () => {
+          const maxZ = Math.max(0, ...state.logos.map(item => item.z));
+          selected.forEach((item, index) => item.z = maxZ + index + 1);
+          render();
+        });
+        document.getElementById('multiSendBackBtn').addEventListener('click', () => {
+          const minZ = Math.min(0, ...state.logos.map(item => item.z));
+          selected.forEach((item, index) => item.z = minZ - index - 1);
+          render();
+        });
+        document.getElementById('multiDeleteBtn').addEventListener('click', deleteSelected);
+        return;
+      }
       if (!logo) {
         els.selectedPanel.className = 'selected-empty';
         els.selectedPanel.innerHTML = '选择一个 logo 后，可以在这里精确调整它的实际尺寸和位置。';
@@ -338,7 +387,7 @@ const state = {
         .sort((a, b) => b.z - a.z)
         .forEach(logo => {
           const row = document.createElement('div');
-          row.className = `logo-row${logo.id === state.selectedId ? ' active' : ''}`;
+          row.className = `logo-row${isSelected(logo.id) ? ' active' : ''}`;
           row.innerHTML = `
             <div>
               <strong>${escapeHtml(logo.name)}</strong>
@@ -347,12 +396,12 @@ const state = {
             <button class="icon" title="删除">×</button>
           `;
           row.addEventListener('click', () => {
-            state.selectedId = logo.id;
+            selectOnly(logo.id);
             render();
           });
           row.querySelector('button').addEventListener('click', event => {
             event.stopPropagation();
-            state.selectedId = logo.id;
+            selectOnly(logo.id);
             deleteSelected();
           });
           els.logoList.appendChild(row);
@@ -368,16 +417,27 @@ const state = {
     function startDrag(event, id) {
       if (event.target.classList.contains('handle') || event.target.classList.contains('rotate-handle')) return;
       event.preventDefault();
-      state.selectedId = id;
-      const logo = selectedLogo();
+      if (event.shiftKey || event.metaKey || event.ctrlKey) {
+        toggleSelection(id);
+      } else if (!isSelected(id)) {
+        selectOnly(id);
+      } else {
+        state.selectedId = id;
+      }
+      const movingLogos = selectedLogos();
       const startX = event.clientX;
       const startY = event.clientY;
-      const origin = { x: logo.x, y: logo.y };
+      const origins = new Map(movingLogos.map(logo => [logo.id, { x: logo.x, y: logo.y }]));
       render();
 
       const move = moveEvent => {
-        logo.x = origin.x + (moveEvent.clientX - startX) / state.zoom;
-        logo.y = origin.y + (moveEvent.clientY - startY) / state.zoom;
+        const dx = (moveEvent.clientX - startX) / state.zoom;
+        const dy = (moveEvent.clientY - startY) / state.zoom;
+        movingLogos.forEach(logo => {
+          const origin = origins.get(logo.id);
+          logo.x = origin.x + dx;
+          logo.y = origin.y + dy;
+        });
         renderLogos();
         renderSelectedPanel();
         renderLogoList();
@@ -393,7 +453,7 @@ const state = {
     function startResize(event, id) {
       event.preventDefault();
       event.stopPropagation();
-      state.selectedId = id;
+      selectOnly(id);
       const logo = selectedLogo();
       const startX = event.clientX;
       const startWidth = logo.width;
@@ -417,7 +477,7 @@ const state = {
     function startRotate(event, id) {
       event.preventDefault();
       event.stopPropagation();
-      state.selectedId = id;
+      selectOnly(id);
       const logo = selectedLogo();
 
       const move = moveEvent => {
@@ -470,37 +530,111 @@ const state = {
           z: startCount + state.logos.length
         });
       }
-      state.selectedId = state.logos.at(-1)?.id || null;
+      setSelection(state.logos.at(-1)?.id ? [state.logos.at(-1).id] : []);
       render();
       centerCanvas();
     }
 
     function deleteSelected() {
-      if (!state.selectedId) return;
-      state.logos = state.logos.filter(logo => logo.id !== state.selectedId);
-      state.selectedId = null;
+      if (!state.selectedIds.length) return;
+      state.logos = state.logos.filter(logo => !isSelected(logo.id));
+      clearSelection();
       render();
     }
 
     function copySelected() {
-      const logo = selectedLogo();
-      if (logo) state.clipboard = { ...logo };
+      const logos = selectedLogos();
+      if (logos.length) state.clipboard = logos.map(logo => ({ ...logo }));
     }
 
     function pasteLogo() {
       if (!state.clipboard) return;
-      const copy = {
-        ...state.clipboard,
+      const items = Array.isArray(state.clipboard) ? state.clipboard : [state.clipboard];
+      const maxZ = Math.max(0, ...state.logos.map(item => item.z));
+      const copies = items.map((item, index) => ({
+        ...item,
         id: uid(),
-        name: `${state.clipboard.name} copy`,
-        x: state.clipboard.x + 40,
-        y: state.clipboard.y + 40,
-        z: Math.max(0, ...state.logos.map(item => item.z)) + 1
-      };
-      state.logos.push(copy);
-      state.selectedId = copy.id;
-      state.clipboard = { ...copy };
+        name: `${item.name} copy`,
+        x: item.x + 40,
+        y: item.y + 40,
+        z: maxZ + index + 1
+      }));
+      state.logos.push(...copies);
+      setSelection(copies.map(copy => copy.id));
+      state.clipboard = copies.map(copy => ({ ...copy }));
       render();
+    }
+
+    function moveSelected(dx, dy) {
+      const logos = selectedLogos();
+      if (!logos.length) return;
+      logos.forEach(logo => {
+        logo.x += dx;
+        logo.y += dy;
+      });
+      renderLogos();
+      renderSelectedPanel();
+      renderLogoList();
+    }
+
+    function getStagePoint(event) {
+      const rect = els.stage.getBoundingClientRect();
+      return {
+        x: clamp((event.clientX - rect.left) / state.zoom, 0, state.canvas.width),
+        y: clamp((event.clientY - rect.top) / state.zoom, 0, state.canvas.height)
+      };
+    }
+
+    function intersects(a, b) {
+      return a.x < b.x + b.width &&
+        a.x + a.width > b.x &&
+        a.y < b.y + b.height &&
+        a.y + a.height > b.y;
+    }
+
+    function startMarquee(event) {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      const start = getStagePoint(event);
+      const box = document.createElement('div');
+      box.className = 'marquee';
+      els.stage.appendChild(box);
+
+      const move = moveEvent => {
+        const current = getStagePoint(moveEvent);
+        const rect = {
+          x: Math.min(start.x, current.x),
+          y: Math.min(start.y, current.y),
+          width: Math.abs(current.x - start.x),
+          height: Math.abs(current.y - start.y)
+        };
+        box.style.left = screen(rect.x);
+        box.style.top = screen(rect.y);
+        box.style.width = screen(rect.width);
+        box.style.height = screen(rect.height);
+
+        const selectedIds = state.logos
+          .filter(logo => intersects(rect, {
+            x: logo.x,
+            y: logo.y,
+            width: logo.width,
+            height: logo.height
+          }))
+          .map(logo => logo.id);
+        setSelection(selectedIds);
+        renderLogos();
+        renderSelectedPanel();
+        renderLogoList();
+      };
+
+      const up = () => {
+        box.remove();
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+      };
+
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
     }
 
     function canvasPayload() {
@@ -609,7 +743,7 @@ const state = {
           ...logo,
           rotation: logo.rotation || 0
         })) : [];
-        state.selectedId = state.logos[0]?.id || null;
+        setSelection(state.logos[0]?.id ? [state.logos[0].id] : []);
         syncInputs();
         render();
       };
@@ -736,6 +870,17 @@ const state = {
           return;
         }
         if (editing) return;
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+          event.preventDefault();
+          const step = event.shiftKey ? 10 : 1;
+          const moves = {
+            ArrowUp: [0, -step],
+            ArrowDown: [0, step],
+            ArrowLeft: [-step, 0],
+            ArrowRight: [step, 0]
+          };
+          moveSelected(...moves[event.key]);
+        }
         if (event.key === 'Delete' || event.key === 'Backspace') {
           event.preventDefault();
           deleteSelected();
@@ -753,8 +898,7 @@ const state = {
 
       els.stage.addEventListener('pointerdown', event => {
         if (event.target === els.stage) {
-          state.selectedId = null;
-          render();
+          startMarquee(event);
         }
       });
     }
