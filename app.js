@@ -8,11 +8,17 @@ const state = {
       projects: [],
       activeProjectId: null,
       saveTimer: null,
+      workspaceOpen: false,
       panels: { left: true, right: true }
     };
 
     const els = {
       app: document.getElementById('app'),
+      projectHome: document.getElementById('projectHome'),
+      projectGrid: document.getElementById('projectGrid'),
+      projectHomeNewBtn: document.getElementById('projectHomeNewBtn'),
+      projectHomeStatus: document.getElementById('projectHomeStatus'),
+      backProjectsBtn: document.getElementById('backProjectsBtn'),
       stage: document.getElementById('stage'),
       stageFrame: document.getElementById('stageFrame'),
       rulerTop: document.getElementById('rulerTop'),
@@ -28,10 +34,6 @@ const state = {
       solidModeBtn: document.getElementById('solidModeBtn'),
       whiteBgBtn: document.getElementById('whiteBgBtn'),
       blackBgBtn: document.getElementById('blackBgBtn'),
-      projectName: document.getElementById('projectName'),
-      newProjectBtn: document.getElementById('newProjectBtn'),
-      projectList: document.getElementById('projectList'),
-      saveStatus: document.getElementById('saveStatus'),
       uploadBtn: document.getElementById('uploadBtn'),
       exportMenuBtn: document.getElementById('exportMenuBtn'),
       exportMenu: document.getElementById('exportMenu'),
@@ -189,7 +191,7 @@ const state = {
       renderLogos();
       renderSelectedPanel();
       renderLogoList();
-      renderProjects();
+      renderProjectHome();
     }
 
     function centerCanvas() {
@@ -254,6 +256,10 @@ const state = {
       els.exportMenuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
     }
 
+    function setProjectStatus(message) {
+      els.projectHomeStatus.textContent = message;
+    }
+
     function openProjectDb() {
       if (dbPromise) return dbPromise;
       dbPromise = new Promise((resolve, reject) => {
@@ -305,7 +311,8 @@ const state = {
     }
 
     function currentProjectName() {
-      return els.projectName.value.trim() || '未命名项目';
+      const project = state.projects.find(item => item.id === state.activeProjectId);
+      return project?.name?.trim() || '未命名项目';
     }
 
     function createProjectRecord(name = '未命名项目') {
@@ -322,38 +329,72 @@ const state = {
       const existing = state.projects.find(project => project.id === state.activeProjectId);
       return {
         id: state.activeProjectId || uid(),
-        name: currentProjectName(),
+        name: existing?.name || '未命名项目',
         createdAt: existing?.createdAt || Date.now(),
         updatedAt: Date.now(),
         payload: canvasPayload()
       };
     }
 
-    function renderProjects() {
-      if (!els.projectList) return;
+    function renderProjectHome() {
+      if (!els.projectGrid) return;
       if (!state.projects.length) {
-        els.projectList.innerHTML = '<p class="status">还没有保存的项目。</p>';
+        els.projectGrid.innerHTML = `
+          <div class="empty-projects">
+            <strong>还没有项目</strong>
+            <span>点右上角「新建项目」开始第一张画布。</span>
+          </div>
+        `;
         return;
       }
 
-      els.projectList.innerHTML = '';
+      els.projectGrid.innerHTML = '';
       [...state.projects]
         .sort((a, b) => b.updatedAt - a.updatedAt)
         .forEach(project => {
           const count = Array.isArray(project.payload?.logos) ? project.payload.logos.length : 0;
-          const row = document.createElement('button');
-          row.className = `project-row${project.id === state.activeProjectId ? ' active' : ''}`;
-          row.type = 'button';
-          row.innerHTML = `
-            <span>
-              <strong>${escapeHtml(project.name || '未命名项目')}</strong>
+          const card = document.createElement('article');
+          card.className = `project-card${project.id === state.activeProjectId ? ' active' : ''}`;
+          card.innerHTML = `
+            <input class="project-title-input" value="${escapeHtml(project.name || '未命名项目')}" aria-label="项目名称">
+            <div class="project-meta">
+              <span>${project.payload?.canvas?.width || DEFAULT_CANVAS.width} × ${project.payload?.canvas?.height || DEFAULT_CANVAS.height} mm</span>
+              <span>${count} 个物料</span>
+            </div>
+            <div class="project-card-footer">
               <span>${formatProjectTime(project.updatedAt)} 保存</span>
-            </span>
-            <span class="project-count">${count} 个</span>
+              <button type="button">打开</button>
+            </div>
           `;
-          row.addEventListener('click', () => openProject(project.id));
-          els.projectList.appendChild(row);
+          card.querySelector('.project-title-input').addEventListener('input', event => {
+            project.name = event.target.value.trim() || '未命名项目';
+            project.updatedAt = Date.now();
+            writeProject(project)
+              .then(() => setProjectStatus('已保存到本机。'))
+              .catch(error => {
+                console.error(error);
+                setProjectStatus('项目重命名失败。');
+              });
+          });
+          card.querySelector('button').addEventListener('click', () => openProject(project.id));
+          els.projectGrid.appendChild(card);
         });
+    }
+
+    function showProjectHome() {
+      state.workspaceOpen = false;
+      state.activeProjectId = null;
+      els.projectHome.classList.remove('hidden');
+      els.app.classList.add('hidden');
+      renderProjectHome();
+    }
+
+    function showWorkspace() {
+      state.workspaceOpen = true;
+      els.projectHome.classList.add('hidden');
+      els.app.classList.remove('hidden');
+      render();
+      centerCanvas();
     }
 
     function applyProjectPayload(payload = {}) {
@@ -370,29 +411,29 @@ const state = {
     }
 
     async function persistActiveProject({ immediate = false } = {}) {
-      if (!state.activeProjectId) return;
+      if (!state.activeProjectId || !state.workspaceOpen) return;
       if (state.saveTimer) clearTimeout(state.saveTimer);
 
       const save = async () => {
-        els.saveStatus.textContent = '保存中...';
+        setProjectStatus('保存中...');
         const project = currentProjectRecord();
         await writeProject(project);
         state.projects = state.projects
           .filter(item => item.id !== project.id)
           .concat(project);
         state.saveTimer = null;
-        els.saveStatus.textContent = '已保存到本机';
-        renderProjects();
+        setProjectStatus('已保存到本机。');
+        renderProjectHome();
       };
 
       if (immediate) {
         await save();
       } else {
-        els.saveStatus.textContent = '正在等待保存...';
+        setProjectStatus('正在等待保存...');
         state.saveTimer = setTimeout(() => {
           save().catch(error => {
             console.error(error);
-            els.saveStatus.textContent = '保存失败';
+            setProjectStatus('保存失败。');
           });
         }, 500);
       }
@@ -401,7 +442,7 @@ const state = {
     function scheduleProjectSave() {
       persistActiveProject().catch(error => {
         console.error(error);
-        els.saveStatus.textContent = '保存失败';
+        setProjectStatus('保存失败。');
       });
     }
 
@@ -410,9 +451,8 @@ const state = {
       const project = state.projects.find(item => item.id === id);
       if (!project) return;
       state.activeProjectId = project.id;
-      els.projectName.value = project.name || '未命名项目';
       applyProjectPayload(project.payload);
-      renderProjects();
+      showWorkspace();
     }
 
     async function createNewProject() {
@@ -424,11 +464,9 @@ const state = {
       const project = createProjectRecord(`新项目 ${state.projects.length + 1}`);
       state.activeProjectId = project.id;
       state.projects = state.projects.concat(project);
-      els.projectName.value = project.name;
       await writeProject(project);
       syncInputs();
-      render();
-      centerCanvas();
+      showWorkspace();
     }
 
     async function initProjects() {
@@ -436,19 +474,13 @@ const state = {
         state.projects = await readProjects();
         if (!state.projects.length) {
           const project = createProjectRecord('未命名项目');
-          state.activeProjectId = project.id;
           state.projects = [project];
-          els.projectName.value = project.name;
           await writeProject(project);
           return;
         }
-        const latest = [...state.projects].sort((a, b) => b.updatedAt - a.updatedAt)[0];
-        state.activeProjectId = latest.id;
-        els.projectName.value = latest.name || '未命名项目';
-        applyProjectPayload(latest.payload);
       } catch (error) {
         console.error(error);
-        els.saveStatus.textContent = '本地项目库不可用';
+        setProjectStatus('本地项目库不可用。');
       }
     }
 
@@ -1176,12 +1208,19 @@ const state = {
         render();
         scheduleProjectSave();
       });
-      els.projectName.addEventListener('input', scheduleProjectSave);
-      els.newProjectBtn.addEventListener('click', () => {
+      els.projectHomeNewBtn.addEventListener('click', () => {
         createNewProject().catch(error => {
           console.error(error);
-          els.saveStatus.textContent = '新建失败';
+          setProjectStatus('新建失败。');
         });
+      });
+      els.backProjectsBtn.addEventListener('click', () => {
+        persistActiveProject({ immediate: true })
+          .then(showProjectHome)
+          .catch(error => {
+            console.error(error);
+            setProjectStatus('返回项目列表失败。');
+          });
       });
       els.uploadBtn.addEventListener('click', () => els.fileInput.click());
       els.exportMenuBtn.addEventListener('click', event => {
@@ -1289,8 +1328,7 @@ const state = {
       syncInputs();
       wireInputs();
       await initProjects();
-      render();
-      centerCanvas();
+      showProjectHome();
     }
 
     boot();

@@ -7,7 +7,28 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="app" id="app">
+  <section class="project-home" id="projectHome">
+    <header class="project-hero">
+      <div class="brand">
+        <div class="brand-line">
+          <strong>Scale Studio</strong>
+          <em class="creator">Created by Stephanie</em>
+        </div>
+        <span>本机项目库</span>
+      </div>
+      <button class="primary" id="projectHomeNewBtn" type="button">新建项目</button>
+    </header>
+
+    <main class="project-home-main">
+      <div class="project-home-title">
+        <h1>项目列表</h1>
+        <p id="projectHomeStatus">项目会自动保存到当前浏览器。</p>
+      </div>
+      <div class="project-grid" id="projectGrid"></div>
+    </main>
+  </section>
+
+  <div class="app hidden" id="app">
     <header class="topbar">
       <div class="brand">
         <div class="brand-line">
@@ -17,6 +38,7 @@
         <span id="canvasSummary">4800 × 2700 mm workspace</span>
       </div>
       <div class="toolbar">
+        <button id="backProjectsBtn" type="button">项目列表</button>
         <button class="primary" id="uploadBtn">上传</button>
         <div class="menu-wrap">
           <button id="exportMenuBtn" type="button" aria-haspopup="true" aria-expanded="false">导出</button>
@@ -37,20 +59,6 @@
         <button class="icon panel-toggle" id="toggleLeftBtn" title="收起画布设置" type="button">‹</button>
       </div>
       <div class="side-content">
-        <section class="section">
-          <h2>项目</h2>
-          <div class="project-panel">
-            <label>当前项目
-              <input id="projectName" value="未命名项目">
-            </label>
-            <div class="project-actions">
-              <button id="newProjectBtn" type="button">新建项目</button>
-              <span id="saveStatus">已保存到本机</span>
-            </div>
-            <div class="project-list" id="projectList"></div>
-          </div>
-        </section>
-
         <section class="section">
           <h2>画布</h2>
           <div class="fields">

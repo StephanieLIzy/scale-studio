@@ -99,6 +99,138 @@
       line-height: 1.2;
     }
 
+    .hidden { display: none !important; }
+
+    .project-home {
+      min-height: 100vh;
+      padding: 34px clamp(24px, 5vw, 72px) 56px;
+      overflow: auto;
+    }
+
+    .project-hero {
+      max-width: 1120px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding-bottom: 34px;
+      border-bottom: 1px solid rgba(5, 48, 70, .1);
+    }
+
+    .project-hero .brand strong {
+      font-size: 28px;
+    }
+
+    .project-home-main {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding-top: 34px;
+    }
+
+    .project-home-title {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 22px;
+    }
+
+    .project-home-title h1 {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    .project-home-title p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .project-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 14px;
+    }
+
+    .project-card,
+    .empty-projects {
+      border: 1px solid rgba(5, 48, 70, .1);
+      background: rgba(255, 255, 255, .68);
+      border-radius: 18px;
+      box-shadow: 0 18px 42px rgba(5, 48, 70, .08), inset 0 1px 0 rgba(255, 255, 255, .9);
+      backdrop-filter: blur(20px);
+    }
+
+    .project-card {
+      min-height: 150px;
+      padding: 16px;
+      display: grid;
+      align-content: space-between;
+      gap: 18px;
+    }
+
+    .project-card.active {
+      border-color: rgba(5, 48, 70, .24);
+      background: rgba(255, 255, 255, .84);
+    }
+
+    .project-title-input {
+      height: 36px;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+      color: var(--ink);
+      font-size: 18px;
+      font-weight: 750;
+    }
+
+    .project-title-input:focus {
+      border-color: transparent;
+      box-shadow: none;
+    }
+
+    .project-meta {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .project-card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .project-card-footer button {
+      height: 32px;
+      border-radius: 11px;
+      font-weight: 650;
+    }
+
+    .empty-projects {
+      min-height: 180px;
+      padding: 24px;
+      display: grid;
+      place-content: center;
+      gap: 8px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .empty-projects strong {
+      color: var(--ink);
+      font-size: 18px;
+    }
+
     .app {
       height: 100vh;
       display: grid;
@@ -306,80 +438,6 @@
     }
 
     .fields.one { grid-template-columns: 1fr; }
-
-    .project-panel {
-      display: grid;
-      gap: 12px;
-    }
-
-    .project-actions {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .project-actions button {
-      flex: 0 0 auto;
-      font-weight: 650;
-    }
-
-    .project-actions span {
-      color: var(--muted);
-      font-size: 11px;
-      white-space: nowrap;
-    }
-
-    .project-list {
-      display: grid;
-      gap: 7px;
-      max-height: 170px;
-      overflow: auto;
-    }
-
-    .project-row {
-      width: 100%;
-      height: auto;
-      min-height: 46px;
-      display: grid;
-      grid-template-columns: 1fr auto;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 9px;
-      text-align: left;
-      border-radius: 12px;
-      box-shadow: none;
-    }
-
-    .project-row.active {
-      border-color: rgba(5, 48, 70, .22);
-      background: rgba(156, 182, 197, .2);
-    }
-
-    .project-row strong,
-    .project-row span {
-      display: block;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .project-row strong {
-      font-size: 12px;
-      color: #183b4a;
-    }
-
-    .project-row span {
-      margin-top: 3px;
-      color: var(--muted);
-      font-size: 11px;
-      font-weight: 500;
-    }
-
-    .project-count {
-      color: #42606b;
-      font-size: 11px;
-      font-weight: 700;
-    }
 
     .segmented {
       display: grid;
@@ -709,5 +767,9 @@
         flex-direction: column;
       }
       .toolbar { justify-content: flex-start; }
-      .project-row { grid-template-columns: 1fr; }
+      .project-hero,
+      .project-home-title {
+        align-items: flex-start;
+        flex-direction: column;
+      }
     }
