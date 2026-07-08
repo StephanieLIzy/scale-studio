@@ -93,6 +93,95 @@ const state = {
       });
     }
 
+    async function trimTransparentImage(src) {
+      const image = await loadImage(src);
+      const width = image.naturalWidth || image.width;
+      const height = image.naturalHeight || image.height;
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(image, 0, 0);
+
+      let pixels;
+      try {
+        pixels = ctx.getImageData(0, 0, width, height).data;
+      } catch {
+        return {
+          src,
+          width,
+          height,
+          bounds: { x: 0, y: 0, width, height }
+        };
+      }
+
+      let minX = width;
+      let minY = height;
+      let maxX = -1;
+      let maxY = -1;
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const alpha = pixels[(y * width + x) * 4 + 3];
+          if (alpha > 8) {
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x);
+            maxY = Math.max(maxY, y);
+          }
+        }
+      }
+
+      if (maxX < minX || maxY < minY) {
+        return {
+          src,
+          width,
+          height,
+          bounds: { x: 0, y: 0, width, height }
+        };
+      }
+
+      const cropWidth = maxX - minX + 1;
+      const cropHeight = maxY - minY + 1;
+      if (cropWidth === width && cropHeight === height) {
+        return {
+          src,
+          width,
+          height,
+          bounds: { x: 0, y: 0, width, height }
+        };
+      }
+
+      const output = document.createElement('canvas');
+      output.width = cropWidth;
+      output.height = cropHeight;
+      output
+        .getContext('2d')
+        .drawImage(canvas, minX, minY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+
+      return {
+        src: output.toDataURL('image/png'),
+        width: cropWidth,
+        height: cropHeight,
+        bounds: { x: minX, y: minY, width: cropWidth, height: cropHeight },
+        original: { width, height }
+      };
+    }
+
+    async function tryTrimTransparentImage(src) {
+      try {
+        return await trimTransparentImage(src);
+      } catch (error) {
+        console.warn('Could not trim transparent padding.', error);
+        const size = await getImageSize(src);
+        return {
+          src,
+          width: size.width,
+          height: size.height,
+          bounds: { x: 0, y: 0, width: size.width, height: size.height }
+        };
+      }
+    }
+
     function render() {
       renderPanels();
       renderCanvas();
@@ -543,6 +632,7 @@ const state = {
         <div class="toolbar" style="justify-content:flex-start;margin-top:10px">
           <button id="bringFrontBtn">置顶</button>
           <button id="sendBackBtn">置底</button>
+          <button id="trimLogoBtn">裁剪透明边</button>
           <button id="deleteBtn" style="color:var(--danger)">删除</button>
         </div>
       `;
@@ -578,6 +668,13 @@ const state = {
         render();
         scheduleProjectSave();
       });
+      document.getElementById('trimLogoBtn').addEventListener('click', event => {
+        event.target.textContent = '裁剪中...';
+        cropLogoToContent(logo).catch(error => {
+          console.error(error);
+          event.target.textContent = '裁剪失败';
+        });
+      });
       document.getElementById('deleteBtn').addEventListener('click', deleteSelected);
     }
 
@@ -607,7 +704,7 @@ const state = {
           row.className = `logo-row${isSelected(logo.id) ? ' active' : ''}`;
           row.innerHTML = `
             <div>
-              <strong>${escapeHtml(logo.name)}</strong>
+              <input class="logo-name-input" value="${escapeHtml(logo.name)}" aria-label="Logo 名称">
               <span>${Math.round(logo.width)} × ${Math.round(logo.height)} mm · ${Math.round(logo.rotation || 0)}°</span>
             </div>
             <button class="icon" title="删除">×</button>
@@ -615,6 +712,21 @@ const state = {
           row.addEventListener('click', () => {
             selectOnly(logo.id);
             render();
+          });
+          row.querySelector('.logo-name-input').addEventListener('pointerdown', event => {
+            event.stopPropagation();
+          });
+          row.querySelector('.logo-name-input').addEventListener('click', event => {
+            event.stopPropagation();
+            selectOnly(logo.id);
+            renderLogos();
+            renderSelectedPanel();
+          });
+          row.querySelector('.logo-name-input').addEventListener('input', event => {
+            logo.name = event.target.value;
+            const editName = document.getElementById('editName');
+            if (editName && state.selectedId === logo.id) editName.value = logo.name;
+            scheduleProjectSave();
           });
           row.querySelector('button').addEventListener('click', event => {
             event.stopPropagation();
@@ -732,9 +844,10 @@ const state = {
 
       for (const file of imageFiles) {
         const index = state.logos.length - startCount;
-        const src = await readFileAsDataURL(file);
-        const size = await getImageSize(src);
-        const aspect = size.width / size.height;
+        const originalSrc = await readFileAsDataURL(file);
+        const trimmed = await tryTrimTransparentImage(originalSrc);
+        const src = trimmed.src;
+        const aspect = trimmed.width / trimmed.height;
         const width = Math.min(420, Math.max(180, state.canvas.width * 0.08));
         const height = width / aspect;
         state.logos.push({
@@ -746,6 +859,8 @@ const state = {
           width,
           height,
           aspect,
+          pixelWidth: trimmed.width,
+          pixelHeight: trimmed.height,
           rotation: 0,
           z: startCount + state.logos.length
         });
@@ -753,6 +868,29 @@ const state = {
       setSelection(state.logos.at(-1)?.id ? [state.logos.at(-1).id] : []);
       render();
       centerCanvas();
+      scheduleProjectSave();
+    }
+
+    async function cropLogoToContent(logo) {
+      const size = await getImageSize(logo.src);
+      const trimmed = await tryTrimTransparentImage(logo.src);
+      const sameSize = trimmed.width === size.width && trimmed.height === size.height;
+      if (sameSize) {
+        renderSelectedPanel();
+        return;
+      }
+
+      const ratioX = logo.width / size.width;
+      const ratioY = logo.height / size.height;
+      logo.x += trimmed.bounds.x * ratioX;
+      logo.y += trimmed.bounds.y * ratioY;
+      logo.width = trimmed.width * ratioX;
+      logo.height = trimmed.height * ratioY;
+      logo.aspect = trimmed.width / trimmed.height;
+      logo.pixelWidth = trimmed.width;
+      logo.pixelHeight = trimmed.height;
+      logo.src = trimmed.src;
+      render();
       scheduleProjectSave();
     }
 
