@@ -5,6 +5,9 @@ const state = {
       selectedId: null,
       selectedIds: [],
       clipboard: null,
+      projects: [],
+      activeProjectId: null,
+      saveTimer: null,
       panels: { left: true, right: true }
     };
 
@@ -25,6 +28,10 @@ const state = {
       solidModeBtn: document.getElementById('solidModeBtn'),
       whiteBgBtn: document.getElementById('whiteBgBtn'),
       blackBgBtn: document.getElementById('blackBgBtn'),
+      projectName: document.getElementById('projectName'),
+      newProjectBtn: document.getElementById('newProjectBtn'),
+      projectList: document.getElementById('projectList'),
+      saveStatus: document.getElementById('saveStatus'),
       uploadBtn: document.getElementById('uploadBtn'),
       exportMenuBtn: document.getElementById('exportMenuBtn'),
       exportMenu: document.getElementById('exportMenu'),
@@ -49,7 +56,12 @@ const state = {
     const normalizeAngle = value => ((value % 360) + 360) % 360;
     const MIN_ZOOM = 0.05;
     const MAX_ZOOM = 2;
+    const DEFAULT_CANVAS = { width: 4800, height: 2700, divisions: 4, gridStep: 100, mode: 'grid', bg: 'white' };
+    const DB_NAME = 'scale-studio-projects';
+    const DB_VERSION = 1;
+    const STORE_NAME = 'projects';
     const screen = value => `${value * state.zoom}px`;
+    let dbPromise = null;
 
     function download(filename, content, type) {
       const blob = content instanceof Blob ? content : new Blob([content], { type });
@@ -88,6 +100,7 @@ const state = {
       renderLogos();
       renderSelectedPanel();
       renderLogoList();
+      renderProjects();
     }
 
     function centerCanvas() {
@@ -150,6 +163,204 @@ const state = {
     function setExportMenu(open) {
       els.exportMenu.classList.toggle('open', open);
       els.exportMenuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    function openProjectDb() {
+      if (dbPromise) return dbPromise;
+      dbPromise = new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onupgradeneeded = () => {
+          const db = request.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      return dbPromise;
+    }
+
+    async function getProjectStore(mode = 'readonly') {
+      const db = await openProjectDb();
+      return db.transaction(STORE_NAME, mode).objectStore(STORE_NAME);
+    }
+
+    async function readProjects() {
+      const store = await getProjectStore();
+      return new Promise((resolve, reject) => {
+        const request = store.getAll();
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    async function writeProject(project) {
+      const store = await getProjectStore('readwrite');
+      return new Promise((resolve, reject) => {
+        const request = store.put(project);
+        request.onsuccess = () => resolve(project);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    function formatProjectTime(value) {
+      const date = new Date(value);
+      if (!Number.isFinite(date.getTime())) return '刚刚';
+      return date.toLocaleString('zh-CN', {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    function currentProjectName() {
+      return els.projectName.value.trim() || '未命名项目';
+    }
+
+    function createProjectRecord(name = '未命名项目') {
+      const now = Date.now();
+      return {
+        id: uid(),
+        name,
+        updatedAt: now,
+        payload: canvasPayload()
+      };
+    }
+
+    function currentProjectRecord() {
+      const existing = state.projects.find(project => project.id === state.activeProjectId);
+      return {
+        id: state.activeProjectId || uid(),
+        name: currentProjectName(),
+        createdAt: existing?.createdAt || Date.now(),
+        updatedAt: Date.now(),
+        payload: canvasPayload()
+      };
+    }
+
+    function renderProjects() {
+      if (!els.projectList) return;
+      if (!state.projects.length) {
+        els.projectList.innerHTML = '<p class="status">还没有保存的项目。</p>';
+        return;
+      }
+
+      els.projectList.innerHTML = '';
+      [...state.projects]
+        .sort((a, b) => b.updatedAt - a.updatedAt)
+        .forEach(project => {
+          const count = Array.isArray(project.payload?.logos) ? project.payload.logos.length : 0;
+          const row = document.createElement('button');
+          row.className = `project-row${project.id === state.activeProjectId ? ' active' : ''}`;
+          row.type = 'button';
+          row.innerHTML = `
+            <span>
+              <strong>${escapeHtml(project.name || '未命名项目')}</strong>
+              <span>${formatProjectTime(project.updatedAt)} 保存</span>
+            </span>
+            <span class="project-count">${count} 个</span>
+          `;
+          row.addEventListener('click', () => openProject(project.id));
+          els.projectList.appendChild(row);
+        });
+    }
+
+    function applyProjectPayload(payload = {}) {
+      state.canvas = { ...DEFAULT_CANVAS, ...payload.canvas };
+      state.zoom = clamp(Number(payload.zoom) || 0.2, MIN_ZOOM, MAX_ZOOM);
+      state.logos = Array.isArray(payload.logos) ? payload.logos.map(logo => ({
+        ...logo,
+        rotation: logo.rotation || 0
+      })) : [];
+      clearSelection();
+      syncInputs();
+      render();
+      centerCanvas();
+    }
+
+    async function persistActiveProject({ immediate = false } = {}) {
+      if (!state.activeProjectId) return;
+      if (state.saveTimer) clearTimeout(state.saveTimer);
+
+      const save = async () => {
+        els.saveStatus.textContent = '保存中...';
+        const project = currentProjectRecord();
+        await writeProject(project);
+        state.projects = state.projects
+          .filter(item => item.id !== project.id)
+          .concat(project);
+        state.saveTimer = null;
+        els.saveStatus.textContent = '已保存到本机';
+        renderProjects();
+      };
+
+      if (immediate) {
+        await save();
+      } else {
+        els.saveStatus.textContent = '正在等待保存...';
+        state.saveTimer = setTimeout(() => {
+          save().catch(error => {
+            console.error(error);
+            els.saveStatus.textContent = '保存失败';
+          });
+        }, 500);
+      }
+    }
+
+    function scheduleProjectSave() {
+      persistActiveProject().catch(error => {
+        console.error(error);
+        els.saveStatus.textContent = '保存失败';
+      });
+    }
+
+    async function openProject(id) {
+      await persistActiveProject({ immediate: true });
+      const project = state.projects.find(item => item.id === id);
+      if (!project) return;
+      state.activeProjectId = project.id;
+      els.projectName.value = project.name || '未命名项目';
+      applyProjectPayload(project.payload);
+      renderProjects();
+    }
+
+    async function createNewProject() {
+      await persistActiveProject({ immediate: true });
+      state.canvas = { ...DEFAULT_CANVAS };
+      state.zoom = 0.2;
+      state.logos = [];
+      clearSelection();
+      const project = createProjectRecord(`新项目 ${state.projects.length + 1}`);
+      state.activeProjectId = project.id;
+      state.projects = state.projects.concat(project);
+      els.projectName.value = project.name;
+      await writeProject(project);
+      syncInputs();
+      render();
+      centerCanvas();
+    }
+
+    async function initProjects() {
+      try {
+        state.projects = await readProjects();
+        if (!state.projects.length) {
+          const project = createProjectRecord('未命名项目');
+          state.activeProjectId = project.id;
+          state.projects = [project];
+          els.projectName.value = project.name;
+          await writeProject(project);
+          return;
+        }
+        const latest = [...state.projects].sort((a, b) => b.updatedAt - a.updatedAt)[0];
+        state.activeProjectId = latest.id;
+        els.projectName.value = latest.name || '未命名项目';
+        applyProjectPayload(latest.payload);
+      } catch (error) {
+        console.error(error);
+        els.saveStatus.textContent = '本地项目库不可用';
+      }
     }
 
     function setSelection(ids) {
@@ -288,11 +499,13 @@ const state = {
           const maxZ = Math.max(0, ...state.logos.map(item => item.z));
           selected.forEach((item, index) => item.z = maxZ + index + 1);
           render();
+          scheduleProjectSave();
         });
         document.getElementById('multiSendBackBtn').addEventListener('click', () => {
           const minZ = Math.min(0, ...state.logos.map(item => item.z));
           selected.forEach((item, index) => item.z = minZ - index - 1);
           render();
+          scheduleProjectSave();
         });
         document.getElementById('multiDeleteBtn').addEventListener('click', deleteSelected);
         return;
@@ -353,14 +566,17 @@ const state = {
       document.getElementById('editName').addEventListener('input', event => {
         logo.name = event.target.value;
         renderLogoList();
+        scheduleProjectSave();
       });
       document.getElementById('bringFrontBtn').addEventListener('click', () => {
         logo.z = Math.max(0, ...state.logos.map(item => item.z)) + 1;
         render();
+        scheduleProjectSave();
       });
       document.getElementById('sendBackBtn').addEventListener('click', () => {
         logo.z = Math.min(0, ...state.logos.map(item => item.z)) - 1;
         render();
+        scheduleProjectSave();
       });
       document.getElementById('deleteBtn').addEventListener('click', deleteSelected);
     }
@@ -372,6 +588,7 @@ const state = {
           updater(value);
           renderLogos();
           renderLogoList();
+          scheduleProjectSave();
         }
       });
     }
@@ -443,6 +660,7 @@ const state = {
         renderLogoList();
       };
       const up = () => {
+        scheduleProjectSave();
         window.removeEventListener('pointermove', move);
         window.removeEventListener('pointerup', up);
       };
@@ -467,6 +685,7 @@ const state = {
         renderLogoList();
       };
       const up = () => {
+        scheduleProjectSave();
         window.removeEventListener('pointermove', move);
         window.removeEventListener('pointerup', up);
       };
@@ -493,6 +712,7 @@ const state = {
         renderLogoList();
       };
       const up = () => {
+        scheduleProjectSave();
         window.removeEventListener('pointermove', move);
         window.removeEventListener('pointerup', up);
       };
@@ -533,6 +753,7 @@ const state = {
       setSelection(state.logos.at(-1)?.id ? [state.logos.at(-1).id] : []);
       render();
       centerCanvas();
+      scheduleProjectSave();
     }
 
     function deleteSelected() {
@@ -540,6 +761,7 @@ const state = {
       state.logos = state.logos.filter(logo => !isSelected(logo.id));
       clearSelection();
       render();
+      scheduleProjectSave();
     }
 
     function copySelected() {
@@ -563,6 +785,7 @@ const state = {
       setSelection(copies.map(copy => copy.id));
       state.clipboard = copies.map(copy => ({ ...copy }));
       render();
+      scheduleProjectSave();
     }
 
     function moveSelected(dx, dy) {
@@ -575,6 +798,7 @@ const state = {
       renderLogos();
       renderSelectedPanel();
       renderLogoList();
+      scheduleProjectSave();
     }
 
     function getStagePoint(event) {
@@ -641,6 +865,7 @@ const state = {
       return {
         version: 1,
         canvas: state.canvas,
+        zoom: state.zoom,
         logos: state.logos.map(logo => ({
           id: logo.id,
           name: logo.name,
@@ -743,9 +968,11 @@ const state = {
           ...logo,
           rotation: logo.rotation || 0
         })) : [];
+        state.zoom = clamp(Number(payload.zoom) || state.zoom, MIN_ZOOM, MAX_ZOOM);
         setSelection(state.logos[0]?.id ? [state.logos[0].id] : []);
         syncInputs();
         render();
+        scheduleProjectSave();
       };
       reader.readAsText(file);
     }
@@ -763,22 +990,27 @@ const state = {
         state.canvas.width = Math.max(100, Number(event.target.value) || 4800);
         render();
         centerCanvas();
+        scheduleProjectSave();
       });
       els.canvasH.addEventListener('input', event => {
         state.canvas.height = Math.max(100, Number(event.target.value) || 2700);
         render();
         centerCanvas();
+        scheduleProjectSave();
       });
       els.divisions.addEventListener('input', event => {
         state.canvas.divisions = clamp(Number(event.target.value) || 1, 1, 24);
         render();
+        scheduleProjectSave();
       });
       els.gridStep.addEventListener('input', event => {
         state.canvas.gridStep = Math.max(5, Number(event.target.value) || 100);
         render();
+        scheduleProjectSave();
       });
       els.zoom.addEventListener('input', event => {
         setZoom(Number(event.target.value) / 100);
+        scheduleProjectSave();
       });
       els.canvasWrap.addEventListener('wheel', event => {
         if (!event.ctrlKey && !event.metaKey) return;
@@ -789,18 +1021,29 @@ const state = {
       els.gridModeBtn.addEventListener('click', () => {
         state.canvas.mode = 'grid';
         render();
+        scheduleProjectSave();
       });
       els.solidModeBtn.addEventListener('click', () => {
         state.canvas.mode = 'solid';
         render();
+        scheduleProjectSave();
       });
       els.whiteBgBtn.addEventListener('click', () => {
         state.canvas.bg = 'white';
         render();
+        scheduleProjectSave();
       });
       els.blackBgBtn.addEventListener('click', () => {
         state.canvas.bg = 'black';
         render();
+        scheduleProjectSave();
+      });
+      els.projectName.addEventListener('input', scheduleProjectSave);
+      els.newProjectBtn.addEventListener('click', () => {
+        createNewProject().catch(error => {
+          console.error(error);
+          els.saveStatus.textContent = '新建失败';
+        });
       });
       els.uploadBtn.addEventListener('click', () => els.fileInput.click());
       els.exportMenuBtn.addEventListener('click', event => {
@@ -835,7 +1078,8 @@ const state = {
         setExportMenu(false);
       });
       els.saveProjectBtn.addEventListener('click', () => {
-        download('logo-wall-project.json', JSON.stringify(canvasPayload(), null, 2), 'application/json');
+        const filename = `${currentProjectName().replace(/[\\/:*?"<>|]+/g, '-') || 'scale-studio-project'}.json`;
+        download(filename, JSON.stringify(canvasPayload(), null, 2), 'application/json');
         setExportMenu(false);
       });
       els.loadProjectBtn.addEventListener('click', () => {
@@ -903,7 +1147,12 @@ const state = {
       });
     }
 
-    syncInputs();
-    wireInputs();
-    render();
-    centerCanvas();
+    async function boot() {
+      syncInputs();
+      wireInputs();
+      await initProjects();
+      render();
+      centerCanvas();
+    }
+
+    boot();

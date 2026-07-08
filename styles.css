@@ -307,6 +307,80 @@
 
     .fields.one { grid-template-columns: 1fr; }
 
+    .project-panel {
+      display: grid;
+      gap: 12px;
+    }
+
+    .project-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .project-actions button {
+      flex: 0 0 auto;
+      font-weight: 650;
+    }
+
+    .project-actions span {
+      color: var(--muted);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .project-list {
+      display: grid;
+      gap: 7px;
+      max-height: 170px;
+      overflow: auto;
+    }
+
+    .project-row {
+      width: 100%;
+      height: auto;
+      min-height: 46px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 9px;
+      text-align: left;
+      border-radius: 12px;
+      box-shadow: none;
+    }
+
+    .project-row.active {
+      border-color: rgba(5, 48, 70, .22);
+      background: rgba(156, 182, 197, .2);
+    }
+
+    .project-row strong,
+    .project-row span {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .project-row strong {
+      font-size: 12px;
+      color: #183b4a;
+    }
+
+    .project-row span {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .project-count {
+      color: #42606b;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
     .segmented {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -614,4 +688,5 @@
         flex-direction: column;
       }
       .toolbar { justify-content: flex-start; }
+      .project-row { grid-template-columns: 1fr; }
     }
