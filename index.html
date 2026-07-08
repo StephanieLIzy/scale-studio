@@ -38,8 +38,14 @@
         <span id="canvasSummary">4800 × 2700 mm workspace</span>
       </div>
       <div class="toolbar">
-        <button id="backProjectsBtn" type="button">项目列表</button>
-        <button class="primary" id="uploadBtn">上传</button>
+        <button id="backProjectsBtn" type="button">← 返回主页</button>
+        <div class="menu-wrap">
+          <button class="primary" id="uploadMenuBtn" type="button" aria-haspopup="true" aria-expanded="false">上传</button>
+          <div class="export-menu" id="uploadMenu">
+            <button id="uploadImagesBtn" type="button">上传图片</button>
+            <button id="loadProjectBtn" type="button">导入项目 JSON</button>
+          </div>
+        </div>
         <div class="menu-wrap">
           <button id="exportMenuBtn" type="button" aria-haspopup="true" aria-expanded="false">导出</button>
           <div class="export-menu" id="exportMenu">
@@ -47,7 +53,6 @@
             <button id="exportCsvBtn" type="button">导出尺寸 CSV</button>
             <div class="menu-separator"></div>
             <button id="saveProjectBtn" type="button">保存项目 JSON</button>
-            <button id="loadProjectBtn" type="button">导入项目 JSON</button>
           </div>
         </div>
       </div>

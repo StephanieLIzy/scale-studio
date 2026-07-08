@@ -369,6 +369,10 @@
     .side.right {
       border-right: 0;
       border-left: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
     }
 
     .side-head {
@@ -412,6 +416,19 @@
     .app.left-collapsed .side:not(.right) .side-head,
     .app.right-collapsed .side.right .side-head {
       justify-content: center;
+    }
+
+    .side.right .side-content {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      flex: 1;
+      min-height: 0;
+    }
+
+    .side.right .section:last-child {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
     }
 
     .section {
@@ -640,8 +657,11 @@
 
     .logo-list {
       display: grid;
+      align-content: start;
       gap: 6px;
-      max-height: 220px;
+      flex: 1;
+      min-height: 0;
+      max-height: none;
       overflow: auto;
     }
 

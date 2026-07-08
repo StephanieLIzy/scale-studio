@@ -34,7 +34,9 @@ const state = {
       solidModeBtn: document.getElementById('solidModeBtn'),
       whiteBgBtn: document.getElementById('whiteBgBtn'),
       blackBgBtn: document.getElementById('blackBgBtn'),
-      uploadBtn: document.getElementById('uploadBtn'),
+      uploadMenuBtn: document.getElementById('uploadMenuBtn'),
+      uploadMenu: document.getElementById('uploadMenu'),
+      uploadImagesBtn: document.getElementById('uploadImagesBtn'),
       exportMenuBtn: document.getElementById('exportMenuBtn'),
       exportMenu: document.getElementById('exportMenu'),
       canvasWrap: document.getElementById('canvasWrap'),
@@ -254,6 +256,11 @@ const state = {
     function setExportMenu(open) {
       els.exportMenu.classList.toggle('open', open);
       els.exportMenuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    function setUploadMenu(open) {
+      els.uploadMenu.classList.toggle('open', open);
+      els.uploadMenuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
     }
 
     function setProjectStatus(message) {
@@ -1222,9 +1229,19 @@ const state = {
             setProjectStatus('返回项目列表失败。');
           });
       });
-      els.uploadBtn.addEventListener('click', () => els.fileInput.click());
+      els.uploadMenuBtn.addEventListener('click', event => {
+        event.stopPropagation();
+        setUploadMenu(!els.uploadMenu.classList.contains('open'));
+        setExportMenu(false);
+      });
+      els.uploadMenu.addEventListener('click', event => event.stopPropagation());
+      els.uploadImagesBtn.addEventListener('click', () => {
+        setUploadMenu(false);
+        els.fileInput.click();
+      });
       els.exportMenuBtn.addEventListener('click', event => {
         event.stopPropagation();
+        setUploadMenu(false);
         setExportMenu(!els.exportMenu.classList.contains('open'));
       });
       els.exportMenu.addEventListener('click', event => event.stopPropagation());
@@ -1260,6 +1277,7 @@ const state = {
         setExportMenu(false);
       });
       els.loadProjectBtn.addEventListener('click', () => {
+        setUploadMenu(false);
         setExportMenu(false);
         els.jsonInput.click();
       });
@@ -1280,7 +1298,10 @@ const state = {
       window.addEventListener('keydown', event => {
         const target = event.target;
         const editing = target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
-        if (event.key === 'Escape') setExportMenu(false);
+        if (event.key === 'Escape') {
+          setExportMenu(false);
+          setUploadMenu(false);
+        }
         if ((event.ctrlKey || event.metaKey) && ['+', '=', '-', '0'].includes(event.key)) {
           event.preventDefault();
           if (event.key === '0') {
@@ -1315,7 +1336,10 @@ const state = {
           pasteLogo();
         }
       });
-      window.addEventListener('click', () => setExportMenu(false));
+      window.addEventListener('click', () => {
+        setExportMenu(false);
+        setUploadMenu(false);
+      });
 
       els.stage.addEventListener('pointerdown', event => {
         if (event.target === els.stage) {
