@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Scale Studio</title>
-  <link rel="stylesheet" href="styles.css?v=20260713-3">
+  <link rel="stylesheet" href="styles.css?v=20260713-4">
 </head>
 <body>
   <section class="project-home" id="projectHome">
@@ -38,16 +38,25 @@
         <span id="canvasSummary">4800 × 2700 mm workspace</span>
       </div>
       <div class="toolbar">
-        <button id="backProjectsBtn" type="button">← 返回主页</button>
+        <button class="toolbar-action back-action" id="backProjectsBtn" type="button" title="返回主页">
+          <span class="button-icon" aria-hidden="true">←</span>
+          <span class="button-label">返回主页</span>
+        </button>
         <div class="menu-wrap">
-          <button class="primary" id="uploadMenuBtn" type="button" aria-haspopup="true" aria-expanded="false">上传</button>
+          <button class="primary toolbar-action" id="uploadMenuBtn" type="button" aria-haspopup="true" aria-expanded="false" title="上传">
+            <span class="button-icon" aria-hidden="true">↑</span>
+            <span class="button-label">上传</span>
+          </button>
           <div class="export-menu" id="uploadMenu">
             <button id="uploadImagesBtn" type="button">上传图片</button>
             <button id="loadProjectBtn" type="button">导入项目 JSON</button>
           </div>
         </div>
         <div class="menu-wrap">
-          <button id="exportMenuBtn" type="button" aria-haspopup="true" aria-expanded="false">导出</button>
+          <button class="toolbar-action" id="exportMenuBtn" type="button" aria-haspopup="true" aria-expanded="false" title="导出">
+            <span class="button-icon" aria-hidden="true">↓</span>
+            <span class="button-label">导出</span>
+          </button>
           <div class="export-menu" id="exportMenu">
             <button id="exportPngBtn" type="button">导出预览 PNG</button>
             <button id="exportCsvBtn" type="button">导出尺寸 CSV</button>
@@ -58,10 +67,12 @@
       </div>
     </header>
 
-    <aside class="side">
+    <button class="icon panel-toggle panel-toggle-left" id="toggleLeftBtn" title="收起画布设置" aria-controls="canvasSettingsPanel" type="button">‹</button>
+    <button class="icon panel-toggle panel-toggle-right" id="toggleRightBtn" title="收起 Logo 面板" aria-controls="logoPanel" type="button">›</button>
+
+    <aside class="side" id="canvasSettingsPanel">
       <div class="side-head">
         <span>画布设置</span>
-        <button class="icon panel-toggle" id="toggleLeftBtn" title="收起画布设置" type="button">‹</button>
       </div>
       <div class="side-content">
         <section class="section">
@@ -150,9 +161,8 @@
       </div>
     </main>
 
-    <aside class="side right">
+    <aside class="side right" id="logoPanel">
       <div class="side-head">
-        <button class="icon panel-toggle" id="toggleRightBtn" title="收起 Logo 面板" type="button">›</button>
         <span>Logo 面板</span>
       </div>
       <div class="side-content">
@@ -172,6 +182,6 @@
   <input class="hidden-input" id="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" multiple>
   <input class="hidden-input" id="jsonInput" type="file" accept="application/json">
 
-  <script src="app.js?v=20260713-3"></script>
+  <script src="app.js?v=20260713-4"></script>
 </body>
 </html>

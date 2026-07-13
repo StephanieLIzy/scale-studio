@@ -64,6 +64,7 @@ const state = {
     const DB_NAME = 'scale-studio-projects';
     const DB_VERSION = 1;
     const STORE_NAME = 'projects';
+    const compactWorkspace = window.matchMedia('(max-width: 900px)');
     const screen = value => `${value * state.zoom}px`;
     let dbPromise = null;
 
@@ -212,6 +213,8 @@ const state = {
       els.toggleRightBtn.title = state.panels.right ? '收起 Logo 面板' : '展开 Logo 面板';
       els.toggleLeftBtn.setAttribute('aria-label', els.toggleLeftBtn.title);
       els.toggleRightBtn.setAttribute('aria-label', els.toggleRightBtn.title);
+      els.toggleLeftBtn.setAttribute('aria-expanded', String(state.panels.left));
+      els.toggleRightBtn.setAttribute('aria-expanded', String(state.panels.right));
     }
 
     function renderCanvas() {
@@ -398,6 +401,10 @@ const state = {
 
     function showWorkspace() {
       state.workspaceOpen = true;
+      if (compactWorkspace.matches) {
+        state.panels.left = false;
+        state.panels.right = false;
+      }
       els.projectHome.classList.add('hidden');
       els.app.classList.remove('hidden');
       render();
@@ -1283,11 +1290,22 @@ const state = {
       });
       els.toggleLeftBtn.addEventListener('click', () => {
         state.panels.left = !state.panels.left;
+        if (compactWorkspace.matches && state.panels.left) state.panels.right = false;
         renderPanels();
         centerCanvas();
+        setTimeout(centerCanvas, 240);
       });
       els.toggleRightBtn.addEventListener('click', () => {
         state.panels.right = !state.panels.right;
+        if (compactWorkspace.matches && state.panels.right) state.panels.left = false;
+        renderPanels();
+        centerCanvas();
+        setTimeout(centerCanvas, 240);
+      });
+      compactWorkspace.addEventListener('change', event => {
+        if (!event.matches) return;
+        state.panels.left = false;
+        state.panels.right = false;
         renderPanels();
         centerCanvas();
       });
