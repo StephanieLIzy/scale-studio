@@ -777,11 +777,15 @@
         height: auto;
         min-height: 100vh;
         grid-template-columns: 1fr;
-        grid-template-rows: auto auto minmax(70vh, 720px) auto;
+        grid-template-rows: auto minmax(70vh, 720px) auto auto;
       }
       .topbar, .side, .side.right, .canvas-wrap {
         grid-column: 1;
       }
+      .topbar { grid-row: 1; }
+      .canvas-wrap { grid-row: 2; }
+      .side:not(.right) { grid-row: 3; }
+      .side.right { grid-row: 4; }
       .side, .side.right {
         border-left: 0;
         border-right: 0;
