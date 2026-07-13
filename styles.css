@@ -309,6 +309,7 @@
       border-radius: 13px;
       font-weight: 650;
       color: #183b4a;
+      white-space: nowrap;
     }
 
     .toolbar button.primary { color: var(--white); }
@@ -344,6 +345,7 @@
       box-shadow: none;
       background: transparent;
       border-color: transparent;
+      white-space: nowrap;
     }
 
     .export-menu button:hover {
@@ -766,13 +768,13 @@
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9);
     }
 
-    @media (max-width: 980px) {
+    @media (max-width: 1440px) {
       body { overflow: auto; }
       .app {
         height: auto;
         min-height: 100vh;
         grid-template-columns: 1fr;
-        grid-template-rows: auto auto 70vh auto;
+        grid-template-rows: auto auto minmax(70vh, 720px) auto;
       }
       .topbar, .side, .side.right, .canvas-wrap {
         grid-column: 1;
@@ -781,15 +783,77 @@
         border-left: 0;
         border-right: 0;
       }
+      .side {
+        max-height: none;
+      }
+      .side.right {
+        overflow: visible;
+      }
+      .side.right .side-content {
+        display: block;
+      }
+      .side.right .section:last-child {
+        min-height: 320px;
+      }
       .topbar {
         align-items: flex-start;
         padding: 12px;
         flex-direction: column;
       }
-      .toolbar { justify-content: flex-start; }
+      .brand {
+        min-width: 0;
+        width: 100%;
+      }
+      .brand-line {
+        align-items: flex-start;
+        flex-wrap: wrap;
+      }
+      .toolbar {
+        justify-content: flex-start;
+        width: 100%;
+      }
+      .canvas-wrap {
+        min-height: 70vh;
+      }
+      .stage-shell {
+        min-width: max-content;
+        justify-content: flex-start;
+      }
       .project-hero,
       .project-home-title {
         align-items: flex-start;
         flex-direction: column;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .project-home {
+        padding: 22px 16px 40px;
+      }
+      .project-grid {
+        grid-template-columns: 1fr;
+      }
+      .topbar {
+        gap: 12px;
+      }
+      .brand strong,
+      .project-hero .brand strong {
+        font-size: 24px;
+      }
+      .toolbar {
+        gap: 8px;
+      }
+      .toolbar button {
+        height: 36px;
+        padding: 0 10px;
+      }
+      .side {
+        padding: 16px;
+      }
+      .fields {
+        grid-template-columns: 1fr;
+      }
+      .stage-shell {
+        padding: 48px 48px 56px;
       }
     }
