@@ -1,5 +1,6 @@
 const state = {
       canvas: { width: 4800, height: 2700, divisions: 4, gridStep: 100, mode: 'grid', bg: 'white' },
+      viewMode: 'outline',
       zoom: 0.2,
       logos: [],
       selectedId: null,
@@ -34,6 +35,9 @@ const state = {
       solidModeBtn: document.getElementById('solidModeBtn'),
       whiteBgBtn: document.getElementById('whiteBgBtn'),
       blackBgBtn: document.getElementById('blackBgBtn'),
+      templateViewSwitch: document.getElementById('templateViewSwitch'),
+      outlineViewBtn: document.getElementById('outlineViewBtn'),
+      photoViewBtn: document.getElementById('photoViewBtn'),
       uploadMenuBtn: document.getElementById('uploadMenuBtn'),
       uploadMenu: document.getElementById('uploadMenu'),
       uploadImagesBtn: document.getElementById('uploadImagesBtn'),
@@ -61,12 +65,63 @@ const state = {
     const MIN_ZOOM = 0.05;
     const MAX_ZOOM = 2;
     const DEFAULT_CANVAS = { width: 4800, height: 2700, divisions: 4, gridStep: 100, mode: 'grid', bg: 'white' };
+    const TEMPLATE_CONFIG = {
+      'record-wall': {
+        name: '上海店 · 唱片墙',
+        width: 1920,
+        height: 2880,
+        divisions: 6,
+        gridStep: 320,
+        photo: 'assets/shanghai-record-wall-calibrated.jpg',
+        note: '6 × 9 单元 · 单元 320 mm · 圆孔内径 260 mm'
+      },
+      'peg-wall': {
+        name: '上海店 · 洞洞墙',
+        width: 4700,
+        height: 2000,
+        divisions: 5,
+        gridStep: 100,
+        note: '4700 × 2000 mm · 实拍图待补'
+      },
+      'window-wall-mock': {
+        name: '上海店 · 临窗展示面 Mock',
+        width: 3600,
+        height: 2400,
+        divisions: 4,
+        gridStep: 100,
+        note: '测试数据，不用于实际制作'
+      }
+    };
     const DB_NAME = 'scale-studio-projects';
     const DB_VERSION = 1;
     const STORE_NAME = 'projects';
+    const GUEST_STORE_KEY = 'scale-studio-guest-projects-v1';
+    const isGuestMode = new URLSearchParams(location.search).get('mode') === 'guest';
+    const isReadOnlyMode = new URLSearchParams(location.search).get('readonly') === '1';
     const compactWorkspace = window.matchMedia('(max-width: 900px)');
     const screen = value => `${value * state.zoom}px`;
     let dbPromise = null;
+
+    function activeTemplateFromUrl() {
+      const params = new URLSearchParams(location.search);
+      const templateId = params.get('template');
+      return templateId ? { id: templateId, ...TEMPLATE_CONFIG[templateId] } : null;
+    }
+
+    function applyTemplateToNewProject() {
+      const template = activeTemplateFromUrl();
+      if (!template) return;
+      state.canvas = {
+        ...DEFAULT_CANVAS,
+        width: template.width,
+        height: template.height,
+        divisions: template.divisions,
+        gridStep: template.gridStep
+      };
+      state.zoom = template.id === 'record-wall' ? 0.18 : 0.14;
+      state.template = template;
+      state.viewMode = template.photo ? 'photo' : 'outline';
+    }
 
     function download(filename, content, type) {
       const blob = content instanceof Blob ? content : new Blob([content], { type });
@@ -222,12 +277,21 @@ const state = {
       els.stage.style.height = screen(state.canvas.height);
       els.stage.style.backgroundColor = state.canvas.bg === 'black' ? '#111' : '#fff';
       els.stage.classList.toggle('dark', state.canvas.bg === 'black');
-      els.canvasSummary.textContent = `${state.canvas.width} × ${state.canvas.height} mm workspace`;
+      const showPhoto = Boolean(state.template?.photo && state.viewMode === 'photo');
+      els.stage.classList.toggle('template-photo', showPhoto);
+      els.stage.style.setProperty('--template-photo', state.template?.photo ? `url("${state.template.photo}")` : 'none');
+      els.canvasSummary.textContent = state.template
+        ? `${state.template.name} · ${state.template.note}`
+        : `${state.canvas.width} × ${state.canvas.height} mm workspace`;
       els.zoomReadout.value = `${Math.round(state.zoom * 100)}%`;
       els.gridModeBtn.classList.toggle('active', state.canvas.mode === 'grid');
       els.solidModeBtn.classList.toggle('active', state.canvas.mode === 'solid');
       els.whiteBgBtn.classList.toggle('active', state.canvas.bg === 'white');
       els.blackBgBtn.classList.toggle('active', state.canvas.bg === 'black');
+      els.templateViewSwitch.hidden = !state.template;
+      els.outlineViewBtn.classList.toggle('active', state.viewMode === 'outline');
+      els.photoViewBtn.classList.toggle('active', state.viewMode === 'photo');
+      els.photoViewBtn.disabled = !state.template?.photo;
     }
 
     function setZoom(nextZoom, anchorEvent = null) {
@@ -292,6 +356,14 @@ const state = {
     }
 
     async function readProjects() {
+      if (isGuestMode) {
+        try {
+          return JSON.parse(sessionStorage.getItem(GUEST_STORE_KEY) || '[]');
+        } catch (error) {
+          console.warn('Could not read guest session.', error);
+          return [];
+        }
+      }
       const store = await getProjectStore();
       return new Promise((resolve, reject) => {
         const request = store.getAll();
@@ -301,6 +373,12 @@ const state = {
     }
 
     async function writeProject(project) {
+      if (isGuestMode) {
+        const projects = await readProjects();
+        const next = projects.filter(item => item.id !== project.id).concat(project);
+        sessionStorage.setItem(GUEST_STORE_KEY, JSON.stringify(next));
+        return project;
+      }
       const store = await getProjectStore('readwrite');
       return new Promise((resolve, reject) => {
         const request = store.put(project);
@@ -339,6 +417,7 @@ const state = {
       const existing = state.projects.find(project => project.id === state.activeProjectId);
       return {
         id: state.activeProjectId || uid(),
+        portalProjectId: existing?.portalProjectId || null,
         name: existing?.name || '未命名项目',
         createdAt: existing?.createdAt || Date.now(),
         updatedAt: Date.now(),
@@ -413,6 +492,8 @@ const state = {
 
     function applyProjectPayload(payload = {}) {
       state.canvas = { ...DEFAULT_CANVAS, ...payload.canvas };
+      state.template = payload.template || activeTemplateFromUrl();
+      state.viewMode = payload.viewMode || (state.template?.photo ? 'photo' : 'outline');
       state.zoom = clamp(Number(payload.zoom) || 0.2, MIN_ZOOM, MAX_ZOOM);
       state.logos = Array.isArray(payload.logos) ? payload.logos.map(logo => ({
         ...logo,
@@ -425,6 +506,7 @@ const state = {
     }
 
     async function persistActiveProject({ immediate = false } = {}) {
+      if (isReadOnlyMode) return;
       if (!state.activeProjectId || !state.workspaceOpen) return;
       if (state.saveTimer) clearTimeout(state.saveTimer);
 
@@ -437,6 +519,7 @@ const state = {
           .concat(project);
         state.saveTimer = null;
         setProjectStatus('已保存到本机。');
+        syncPortalProject(project);
         renderProjectHome();
       };
 
@@ -453,7 +536,27 @@ const state = {
       }
     }
 
+    function syncPortalProject(project) {
+      if (!project.portalProjectId) return;
+      try {
+        const portalState = JSON.parse(localStorage.getItem('scale-studio-mvp-state-v1') || '{}');
+        if (!Array.isArray(portalState.projects)) return;
+        const index = portalState.projects.findIndex(item => item.id === project.portalProjectId);
+        if (index < 0) return;
+        portalState.projects[index] = {
+          ...portalState.projects[index],
+          name: project.name,
+          updatedAt: project.updatedAt,
+          editorPayload: project.payload
+        };
+        localStorage.setItem('scale-studio-mvp-state-v1', JSON.stringify(portalState));
+      } catch (error) {
+        console.warn('Could not sync project preview.', error);
+      }
+    }
+
     function scheduleProjectSave() {
+      if (isReadOnlyMode) return;
       persistActiveProject().catch(error => {
         console.error(error);
         setProjectStatus('保存失败。');
@@ -471,9 +574,16 @@ const state = {
 
     async function createNewProject() {
       await persistActiveProject({ immediate: true });
+      if (state.projects.length >= 20) {
+        setProjectStatus('每位成员最多创建 20 个项目。');
+        return;
+      }
       state.canvas = { ...DEFAULT_CANVAS };
       state.zoom = 0.2;
       state.logos = [];
+      state.template = null;
+      state.viewMode = 'outline';
+      applyTemplateToNewProject();
       clearSelection();
       const project = createProjectRecord(`新项目 ${state.projects.length + 1}`);
       state.activeProjectId = project.id;
@@ -484,8 +594,37 @@ const state = {
     }
 
     async function initProjects() {
+      const requestedProjectId = new URLSearchParams(location.search).get('project');
+      const requestedTemplate = activeTemplateFromUrl();
       try {
         state.projects = await readProjects();
+        if (requestedProjectId) {
+          const existing = state.projects.find(project => project.portalProjectId === requestedProjectId);
+          if (existing) {
+            state.activeProjectId = existing.id;
+            applyProjectPayload(existing.payload);
+            return;
+          }
+          state.canvas = { ...DEFAULT_CANVAS };
+          state.logos = [];
+          state.template = requestedTemplate;
+          applyTemplateToNewProject();
+          let portalProject = null;
+          try {
+            const portalState = JSON.parse(localStorage.getItem('scale-studio-mvp-state-v1') || '{}');
+            portalProject = portalState.projects?.find(project => project.id === requestedProjectId) || null;
+          } catch (error) {
+            console.warn('Could not restore portal project.', error);
+          }
+          if (portalProject?.editorPayload) applyProjectPayload(portalProject.editorPayload);
+          const project = createProjectRecord(portalProject?.name || requestedTemplate?.name || '店内模板项目');
+          project.portalProjectId = requestedProjectId;
+          project.payload = canvasPayload();
+          state.projects.push(project);
+          state.activeProjectId = project.id;
+          await writeProject(project);
+          return;
+        }
         if (!state.projects.length) {
           const project = createProjectRecord('未命名项目');
           state.projects = [project];
@@ -521,7 +660,7 @@ const state = {
     }
 
     function renderGuides() {
-      els.stage.querySelectorAll('.grid-line, .division-line').forEach(node => node.remove());
+      els.stage.querySelectorAll('.grid-line, .division-line, .template-hole').forEach(node => node.remove());
       els.rulerTop.innerHTML = '';
       els.rulerLeft.innerHTML = '';
       els.rulerTop.style.width = screen(state.canvas.width);
@@ -533,6 +672,20 @@ const state = {
         }
         for (let y = state.canvas.gridStep; y < state.canvas.height; y += state.canvas.gridStep) {
           addLine('grid-line', 0, y, state.canvas.width, 1);
+        }
+      }
+
+      if (state.template?.id === 'record-wall' && state.viewMode === 'outline') {
+        for (let row = 0; row < 9; row += 1) {
+          for (let column = 0; column < 6; column += 1) {
+            const hole = document.createElement('div');
+            hole.className = 'template-hole';
+            hole.style.left = screen(column * 320 + 30);
+            hole.style.top = screen(row * 320 + 30);
+            hole.style.width = screen(260);
+            hole.style.height = screen(260);
+            els.stage.appendChild(hole);
+          }
         }
       }
 
@@ -879,8 +1032,17 @@ const state = {
     }
 
     async function addFiles(files) {
+      if (isReadOnlyMode) return;
       const imageFiles = [...files].filter(file => file.type.startsWith('image/'));
       if (!imageFiles.length) return;
+      if (imageFiles.some(file => file.size > 15 * 1024 * 1024)) {
+        setProjectStatus('单张图片不能超过 15 MB。');
+        return;
+      }
+      if (state.logos.length + imageFiles.length > 30) {
+        setProjectStatus('单个项目最多放置 30 个物料。');
+        return;
+      }
       const startCount = state.logos.length;
       const columns = 8;
       const gapX = 150;
@@ -1049,6 +1211,8 @@ const state = {
       return {
         version: 1,
         canvas: state.canvas,
+        template: state.template || null,
+        viewMode: state.viewMode,
         zoom: state.zoom,
         logos: state.logos.map(logo => ({
           id: logo.id,
@@ -1087,7 +1251,7 @@ const state = {
       canvas.width = state.canvas.width;
       canvas.height = state.canvas.height;
       const ctx = canvas.getContext('2d');
-      drawBackground(ctx, 1);
+      await drawBackground(ctx, 1);
 
       const sorted = [...state.logos].sort((a, b) => a.z - b.z);
       for (const logo of sorted) {
@@ -1102,9 +1266,18 @@ const state = {
       canvas.toBlob(blob => download('logo-wall-preview.png', blob, 'image/png'));
     }
 
-    function drawBackground(ctx, scale) {
+    async function drawBackground(ctx, scale) {
       ctx.fillStyle = state.canvas.bg === 'black' ? '#111111' : '#ffffff';
       ctx.fillRect(0, 0, state.canvas.width * scale, state.canvas.height * scale);
+
+      if (state.template?.photo && state.viewMode === 'photo') {
+        try {
+          const photo = await loadImage(state.template.photo);
+          ctx.drawImage(photo, 0, 0, state.canvas.width * scale, state.canvas.height * scale);
+        } catch (error) {
+          console.warn('Template photo could not be included in export.', error);
+        }
+      }
 
       if (state.canvas.mode === 'grid') {
         ctx.strokeStyle = state.canvas.bg === 'black' ? 'rgba(255,255,255,.22)' : 'rgba(107,91,78,.16)';
@@ -1131,6 +1304,18 @@ const state = {
         ctx.moveTo(part * i * scale, 0);
         ctx.lineTo(part * i * scale, state.canvas.height * scale);
         ctx.stroke();
+      }
+
+      if (state.template?.id === 'record-wall' && state.viewMode === 'outline') {
+        ctx.strokeStyle = 'rgba(5,48,70,.46)';
+        ctx.lineWidth = 3;
+        for (let row = 0; row < 9; row += 1) {
+          for (let column = 0; column < 6; column += 1) {
+            ctx.beginPath();
+            ctx.arc((column * 320 + 160) * scale, (row * 320 + 160) * scale, 130 * scale, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+        }
       }
     }
 
@@ -1222,6 +1407,17 @@ const state = {
         render();
         scheduleProjectSave();
       });
+      els.outlineViewBtn.addEventListener('click', () => {
+        state.viewMode = 'outline';
+        render();
+        scheduleProjectSave();
+      });
+      els.photoViewBtn.addEventListener('click', () => {
+        if (!state.template?.photo) return;
+        state.viewMode = 'photo';
+        render();
+        scheduleProjectSave();
+      });
       els.projectHomeNewBtn.addEventListener('click', () => {
         createNewProject().catch(error => {
           console.error(error);
@@ -1230,7 +1426,10 @@ const state = {
       });
       els.backProjectsBtn.addEventListener('click', () => {
         persistActiveProject({ immediate: true })
-          .then(showProjectHome)
+          .then(() => {
+            if (new URLSearchParams(location.search).get('project')) location.href = 'index.html#/workspace';
+            else showProjectHome();
+          })
           .catch(error => {
             console.error(error);
             setProjectStatus('返回项目列表失败。');
@@ -1329,7 +1528,7 @@ const state = {
           }
           return;
         }
-        if (editing) return;
+        if (editing || isReadOnlyMode) return;
         if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
           event.preventDefault();
           const step = event.shiftKey ? 10 : 1;
@@ -1360,6 +1559,7 @@ const state = {
       });
 
       els.stage.addEventListener('pointerdown', event => {
+        if (isReadOnlyMode) return;
         if (event.target === els.stage) {
           startMarquee(event);
         }
@@ -1370,7 +1570,15 @@ const state = {
       syncInputs();
       wireInputs();
       await initProjects();
-      showProjectHome();
+      if (isReadOnlyMode) {
+        document.body.classList.add('read-only-mode');
+        setProjectStatus('授权已过期：项目只读，可查看与导出。');
+      }
+      if (new URLSearchParams(location.search).get('project')) {
+        showWorkspace();
+      } else {
+        showProjectHome();
+      }
     }
 
     boot();

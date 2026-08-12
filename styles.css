@@ -605,6 +605,39 @@
       user-select: none;
     }
 
+    .stage.template-photo {
+      background-image:
+        linear-gradient(rgba(255, 255, 255, .08), rgba(255, 255, 255, .08)),
+        var(--template-photo);
+      background-size: cover;
+      background-position: center;
+    }
+
+    .stage.template-photo .grid-line { background: rgba(216, 255, 79, .28); }
+    .stage.template-photo .division-line { background: rgba(216, 255, 79, .62); }
+
+    .template-hole {
+      position: absolute;
+      z-index: 1;
+      border: 1px solid rgba(5, 48, 70, .42);
+      border-radius: 50%;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, .5) inset;
+      pointer-events: none;
+    }
+
+    .read-only-mode .side input,
+    .read-only-mode .side button,
+    .read-only-mode #uploadMenuBtn,
+    .read-only-mode #uploadImagesBtn,
+    .read-only-mode #loadProjectBtn {
+      pointer-events: none;
+      opacity: .46;
+    }
+
+    .read-only-mode .logo { pointer-events: none; }
+    .read-only-mode #outlineViewBtn,
+    .read-only-mode #photoViewBtn { pointer-events: auto; opacity: 1; }
+
     .division-line,
     .grid-line,
     .marquee {
