@@ -283,6 +283,7 @@ const state = {
       els.canvasSummary.textContent = state.template
         ? `${state.template.name} · ${state.template.note}`
         : `${state.canvas.width} × ${state.canvas.height} mm workspace`;
+      if (isReadOnlyMode) els.canvasSummary.textContent = `只读 · ${els.canvasSummary.textContent}`;
       els.zoomReadout.value = `${Math.round(state.zoom * 100)}%`;
       els.gridModeBtn.classList.toggle('active', state.canvas.mode === 'grid');
       els.solidModeBtn.classList.toggle('active', state.canvas.mode === 'solid');
@@ -1574,7 +1575,11 @@ const state = {
         document.body.classList.add('read-only-mode');
         setProjectStatus('授权已过期：项目只读，可查看与导出。');
       }
-      if (new URLSearchParams(location.search).get('project')) {
+      if (isGuestMode && state.projects.length) {
+        state.activeProjectId = state.projects[0].id;
+        applyProjectPayload(state.projects[0].payload);
+        showWorkspace();
+      } else if (new URLSearchParams(location.search).get('project')) {
         showWorkspace();
       } else {
         showProjectHome();

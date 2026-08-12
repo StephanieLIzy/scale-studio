@@ -236,6 +236,7 @@ function renderWorkspace() {
   app.querySelectorAll('[data-space]').forEach(button => button.onclick = () => createProject(button.dataset.space));
   app.querySelectorAll('[data-open-project]').forEach(button => button.onclick = () => openProject(button.dataset.openProject));
   app.querySelectorAll('[data-share-project]').forEach(button => button.onclick = () => createShare(button.dataset.shareProject));
+  app.querySelectorAll('[data-rename-project]').forEach(button => button.onclick = () => renameProject(button.dataset.renameProject));
   document.getElementById('recoveryBtn').onclick = () => showCredential(state.member);
   document.getElementById('logoutBtn').onclick = () => { state.member = null; saveState(); navigate('/access'); };
 }
@@ -246,7 +247,20 @@ function spaceCard(space) {
 }
 
 function projectItem(project) {
-  return `<article class="project-item"><div><strong>${escapeHtml(project.name)}</strong><small>${project.spaceName} · ${formatDate(project.updatedAt)}</small></div><div class="space-actions"><button class="button ghost compact" data-open-project="${project.id}" type="button">打开编辑</button><button class="button ghost compact" data-share-project="${project.id}" type="button">只读分享</button></div></article>`;
+  return `<article class="project-item"><div><strong>${escapeHtml(project.name)}</strong><small>${project.spaceName} · ${formatDate(project.updatedAt)}</small></div><div class="space-actions"><button class="button ghost compact" data-open-project="${project.id}" type="button">打开编辑</button><button class="button ghost compact" data-rename-project="${project.id}" type="button">重命名</button><button class="button ghost compact" data-share-project="${project.id}" type="button">只读分享</button></div></article>`;
+}
+
+function renameProject(projectId) {
+  if (Date.now() > state.access.expiresAt) { toast('授权已过期，项目保持只读。'); return; }
+  const project = state.projects.find(item => item.id === projectId && item.memberId === state.member.id);
+  if (!project) return;
+  const nextName = window.prompt('输入新的项目名称', project.name)?.trim();
+  if (!nextName) return;
+  project.name = nextName.slice(0, 60);
+  project.updatedAt = Date.now();
+  saveState();
+  renderWorkspace();
+  toast('项目名称已更新。');
 }
 
 function createProject(spaceId) {
