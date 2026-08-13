@@ -1428,7 +1428,7 @@ const state = {
       els.backProjectsBtn.addEventListener('click', () => {
         persistActiveProject({ immediate: true })
           .then(() => {
-            if (new URLSearchParams(location.search).get('project')) location.href = 'index.html#/workspace';
+            if (new URLSearchParams(location.search).get('project')) location.href = 'index.html#/workspace?view=projects';
             else showProjectHome();
           })
           .catch(error => {

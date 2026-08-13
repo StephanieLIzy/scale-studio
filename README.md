@@ -7,6 +7,7 @@ Scale Studio 用真实空间尺寸和店内实拍图，帮助活动客户检查�
 - 地址：<https://stephanielizy.github.io/scale-studio/>
 - 上海店共享测试码：`SHANGHAI-20`
 - 管理测试口令：`ADMIN-DEMO`
+- 独立管理后台：<https://stephanielizy.github.io/scale-studio/admin.html>
 
 ## 当前可测试流程
 

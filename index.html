@@ -4,31 +4,37 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Scale Studio — 在真实店内空间中确认设计尺寸与陈列效果。">
-  <title>Scale Studio 测试版</title>
-  <link rel="stylesheet" href="portal.css?v=20260813-1">
+  <title>Scale Studio</title>
+  <link rel="stylesheet" href="portal.css?v=20260813-2">
 </head>
 <body>
   <div class="app-shell">
     <header class="site-nav">
-      <a class="wordmark" href="#/">
+      <a class="wordmark" href="#/" aria-label="返回 Scale Studio 首页">
         <span class="wordmark-mark" aria-hidden="true">S</span>
         <span>Scale Studio</span>
       </a>
-      <div class="nav-actions">
-        <span class="test-badge">公开测试版</span>
-        <button class="button ghost compact" id="adminEntry" type="button">管理测试</button>
-      </div>
+      <nav class="nav-actions" id="globalNav" aria-label="主导航">
+        <button class="nav-link" id="backHomeBtn" type="button" hidden>返回首页</button>
+        <a class="nav-link" id="freeCanvasEntry" href="editor.html?mode=guest" hidden>自由画布</a>
+        <button class="account-trigger" id="accountTrigger" type="button" aria-haspopup="dialog" aria-expanded="false" hidden>
+          <span class="member-avatar" id="navAvatar">S</span>
+          <span id="navNickname">账号</span>
+          <span class="chevron" aria-hidden="true">⌄</span>
+        </button>
+      </nav>
     </header>
 
     <main id="app" tabindex="-1"></main>
 
     <footer class="site-footer">
       <span>Scale Studio · Created by Stephanie</span>
-      <span>空间数据仅用于活动方案预演</span>
+      <span>在真实空间中确认尺寸与效果</span>
     </footer>
   </div>
 
+  <div class="account-layer" id="accountLayer" hidden></div>
   <div class="toast-region" id="toastRegion" aria-live="polite"></div>
-  <script src="portal.js?v=20260813-1"></script>
+  <script src="portal.js?v=20260813-2"></script>
 </body>
 </html>
