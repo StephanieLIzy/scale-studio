@@ -83,6 +83,8 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
 .card-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-flow: dense; gap: 18px; }
 .content-card { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 20px; background: rgba(255,255,255,.72); transition: transform 180ms ease, box-shadow 180ms ease; }
 .content-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+.project-card { cursor: pointer; }
+.project-card:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
 .card-visual { aspect-ratio: 16 / 10; position: relative; overflow: hidden; background: var(--navy); }
 .card-visual > img:not(.project-overlay) { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 700ms ease; }
 .content-card:hover .card-visual > img:not(.project-overlay) { transform: scale(1.035); }

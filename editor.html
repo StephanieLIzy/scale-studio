@@ -4,25 +4,22 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AGI Bar 空间预演 · 编辑器</title>
-  <link rel="stylesheet" href="styles.css?v=20260813-2">
+  <link rel="stylesheet" href="styles.css?v=20260814-1">
 </head>
 <body>
   <div class="app hidden" id="app">
     <header class="topbar">
-      <a class="editor-brand" href="index.html#/workspace?view=projects" aria-label="返回我的项目">
+      <div class="editor-brand">
         <img src="assets/agi-bar-logo.png" alt="AGI Bar">
         <span class="editor-brand-copy">
           <strong>空间预演</strong>
           <small id="canvasSummary">4800 × 2700 mm 画布</small>
         </span>
-      </a>
+      </div>
       <span class="save-status" id="projectHomeStatus" aria-live="polite">自动保存</span>
       <div class="toolbar">
-        <button class="toolbar-action back-action" id="backProjectsBtn" type="button" title="返回我的项目">
-          <span class="button-icon" aria-hidden="true">←</span>
-          <span class="button-label">我的项目</span>
-        </button>
-        <div class="menu-wrap">
+        <div class="toolbar-group editor-tools">
+          <div class="menu-wrap">
           <button class="toolbar-action" id="canvasSettingsBtn" type="button" aria-haspopup="true" aria-expanded="false" title="画布设置">
             <span class="button-label">画布设置</span>
           </button>
@@ -56,8 +53,8 @@
               <input id="zoomReadout" readonly value="20%" aria-label="当前缩放比例">
             </div>
           </div>
-        </div>
-        <div class="menu-wrap">
+          </div>
+          <div class="menu-wrap">
           <button class="primary toolbar-action" id="uploadMenuBtn" type="button" aria-haspopup="true" aria-expanded="false" title="上传">
             <span class="button-icon" aria-hidden="true">↑</span>
             <span class="button-label">上传</span>
@@ -66,8 +63,8 @@
             <button id="uploadImagesBtn" type="button">上传图片</button>
             <button id="loadProjectBtn" type="button">导入项目 JSON</button>
           </div>
-        </div>
-        <div class="menu-wrap">
+          </div>
+          <div class="menu-wrap">
           <button class="toolbar-action" id="exportMenuBtn" type="button" aria-haspopup="true" aria-expanded="false" title="导出">
             <span class="button-icon" aria-hidden="true">↓</span>
             <span class="button-label">导出</span>
@@ -78,28 +75,37 @@
             <div class="menu-separator"></div>
             <button id="saveProjectBtn" type="button">保存项目 JSON</button>
           </div>
+          </div>
         </div>
+        <span class="toolbar-divider" aria-hidden="true"></span>
+        <button class="toolbar-action back-action" id="backProjectsBtn" type="button" title="返回我的项目">
+          <span class="button-icon" aria-hidden="true">←</span>
+          <span class="button-label">我的项目</span>
+        </button>
       </div>
     </header>
 
-    <button class="icon panel-toggle panel-toggle-right" id="toggleRightBtn" title="收起物料属性" aria-controls="logoPanel" type="button">›</button>
-
-    <main class="canvas-wrap" id="canvasWrap">
+    <main class="canvas-viewport">
       <div class="segmented canvas-view-switch" id="templateViewSwitch" aria-label="店内模板视图">
         <button id="outlineViewBtn" class="active" type="button">轮廓预览</button>
         <button id="photoViewBtn" type="button">实景预览</button>
       </div>
-      <div class="stage-shell">
-        <div class="stage-frame" id="stageFrame">
-          <div class="ruler-top" id="rulerTop"></div>
-          <div class="ruler-left" id="rulerLeft"></div>
-          <div class="stage" id="stage"></div>
+      <div class="canvas-wrap" id="canvasWrap">
+        <div class="stage-shell" id="stageShell">
+          <div class="stage-frame" id="stageFrame">
+            <div class="ruler-top" id="rulerTop"></div>
+            <div class="ruler-left" id="rulerLeft"></div>
+            <div class="stage" id="stage"></div>
+          </div>
         </div>
       </div>
     </main>
 
     <aside class="side right" id="logoPanel">
-      <div class="side-head"><span>物料属性</span></div>
+      <div class="side-head">
+        <button class="icon panel-toggle" id="toggleRightBtn" title="收起物料属性" aria-controls="logoPanel" type="button">›</button>
+        <span>物料属性</span>
+      </div>
       <div class="side-content">
         <section class="section">
           <h2>选中物料</h2>
@@ -115,6 +121,6 @@
 
   <input class="hidden-input" id="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" multiple>
   <input class="hidden-input" id="jsonInput" type="file" accept="application/json">
-  <script src="app.js?v=20260813-2"></script>
+  <script src="app.js?v=20260814-1"></script>
 </body>
 </html>

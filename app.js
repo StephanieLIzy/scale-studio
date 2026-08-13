@@ -2,6 +2,7 @@ const state = {
       canvas: { width: 4800, height: 2700, divisions: 4, gridStep: 100, mode: 'grid', bg: 'white' },
       viewMode: 'outline',
       zoom: 0.2,
+      pan: { x: 0, y: 0 },
       logos: [],
       selectedId: null,
       selectedIds: [],
@@ -18,6 +19,7 @@ const state = {
       projectHomeStatus: document.getElementById('projectHomeStatus'),
       backProjectsBtn: document.getElementById('backProjectsBtn'),
       stage: document.getElementById('stage'),
+      stageShell: document.getElementById('stageShell'),
       stageFrame: document.getElementById('stageFrame'),
       rulerTop: document.getElementById('rulerTop'),
       rulerLeft: document.getElementById('rulerLeft'),
@@ -247,9 +249,13 @@ const state = {
 
     function centerCanvas() {
       requestAnimationFrame(() => {
-        const maxLeft = Math.max(0, els.canvasWrap.scrollWidth - els.canvasWrap.clientWidth);
-        els.canvasWrap.scrollLeft = maxLeft / 2;
+        state.pan = { x: 0, y: 0 };
+        positionStage();
       });
+    }
+
+    function positionStage() {
+      els.stageFrame.style.transform = `translate(calc(-50% + ${state.pan.x}px), calc(-50% + ${state.pan.y}px))`;
     }
 
     function renderPanels() {
@@ -281,6 +287,7 @@ const state = {
       els.outlineViewBtn.classList.toggle('active', state.viewMode === 'outline');
       els.photoViewBtn.classList.toggle('active', state.viewMode === 'photo');
       els.photoViewBtn.disabled = !state.template?.photo;
+      positionStage();
     }
 
     function setZoom(nextZoom, anchorEvent = null) {
@@ -302,10 +309,9 @@ const state = {
 
       if (anchorEvent && Number.isFinite(worldX) && Number.isFinite(worldY)) {
         const newStageRect = els.stage.getBoundingClientRect();
-        els.canvasWrap.scrollLeft += newStageRect.left + worldX * state.zoom - anchorEvent.clientX;
-        els.canvasWrap.scrollTop += newStageRect.top + worldY * state.zoom - anchorEvent.clientY;
-      } else {
-        centerCanvas();
+        state.pan.x -= newStageRect.left + worldX * state.zoom - anchorEvent.clientX;
+        state.pan.y -= newStageRect.top + worldY * state.zoom - anchorEvent.clientY;
+        positionStage();
       }
     }
 
@@ -422,6 +428,7 @@ const state = {
       state.template = payload.template || activeTemplateFromUrl();
       state.viewMode = payload.viewMode || (state.template?.photo ? 'photo' : 'outline');
       state.zoom = clamp(Number(payload.zoom) || 0.2, MIN_ZOOM, MAX_ZOOM);
+      state.pan = { x: 0, y: 0 };
       state.logos = Array.isArray(payload.logos) ? payload.logos.map(logo => ({
         ...logo,
         rotation: logo.rotation || 0
@@ -727,7 +734,7 @@ const state = {
         <div class="toolbar" style="justify-content:flex-start;margin-top:10px">
           <button id="bringFrontBtn">置顶</button>
           <button id="sendBackBtn">置底</button>
-          <button id="trimLogoBtn">裁剪透明边</button>
+          <button id="trimLogoBtn" ${logo.isVector ? 'disabled title="SVG 已保持矢量格式"' : ''}>${logo.isVector ? 'SVG 矢量' : '裁剪透明边'}</button>
           <button id="deleteBtn" style="color:var(--danger)">删除</button>
         </div>
       `;
@@ -949,9 +956,12 @@ const state = {
       for (const file of imageFiles) {
         const index = state.logos.length - startCount;
         const originalSrc = await readFileAsDataURL(file);
-        const trimmed = await tryTrimTransparentImage(originalSrc);
-        const src = trimmed.src;
-        const aspect = trimmed.width / trimmed.height;
+        const isVector = file.type === 'image/svg+xml' || /\.svg$/i.test(file.name);
+        const prepared = isVector
+          ? { src: originalSrc, ...(await getImageSize(originalSrc)) }
+          : await tryTrimTransparentImage(originalSrc);
+        const src = prepared.src;
+        const aspect = prepared.width / prepared.height;
         const width = Math.min(420, Math.max(180, state.canvas.width * 0.08));
         const height = width / aspect;
         state.logos.push({
@@ -963,19 +973,24 @@ const state = {
           width,
           height,
           aspect,
-          pixelWidth: trimmed.width,
-          pixelHeight: trimmed.height,
+          pixelWidth: prepared.width,
+          pixelHeight: prepared.height,
+          isVector,
           rotation: 0,
           z: startCount + state.logos.length
         });
       }
       setSelection(state.logos.at(-1)?.id ? [state.logos.at(-1).id] : []);
       render();
-      centerCanvas();
       scheduleProjectSave();
     }
 
     async function cropLogoToContent(logo) {
+      if (logo.isVector || /^data:image\/svg\+xml/i.test(logo.src)) {
+        setProjectStatus('SVG 会保留矢量清晰度，不执行像素裁剪。');
+        renderSelectedPanel();
+        return;
+      }
       const size = await getImageSize(logo.src);
       const trimmed = await tryTrimTransparentImage(logo.src);
       const sameSize = trimmed.width === size.width && trimmed.height === size.height;
@@ -1103,6 +1118,29 @@ const state = {
       window.addEventListener('pointerup', up);
     }
 
+    function startWorkspacePan(event) {
+      if (event.button !== 0) return;
+      if (event.target !== els.canvasWrap && event.target !== els.stageShell) return;
+      event.preventDefault();
+      const startX = event.clientX;
+      const startY = event.clientY;
+      const startPan = { ...state.pan };
+      els.canvasWrap.classList.add('panning');
+
+      const move = moveEvent => {
+        state.pan.x = startPan.x + moveEvent.clientX - startX;
+        state.pan.y = startPan.y + moveEvent.clientY - startY;
+        positionStage();
+      };
+      const up = () => {
+        els.canvasWrap.classList.remove('panning');
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+    }
+
     function canvasPayload() {
       return {
         version: 1,
@@ -1120,7 +1158,10 @@ const state = {
           aspect: logo.aspect,
           rotation: logo.rotation || 0,
           z: logo.z,
-          src: logo.src
+          src: logo.src,
+          isVector: Boolean(logo.isVector),
+          pixelWidth: logo.pixelWidth,
+          pixelHeight: logo.pixelHeight
         }))
       };
     }
@@ -1254,13 +1295,11 @@ const state = {
       els.canvasW.addEventListener('input', event => {
         state.canvas.width = Math.max(100, Number(event.target.value) || 4800);
         render();
-        centerCanvas();
         scheduleProjectSave();
       });
       els.canvasH.addEventListener('input', event => {
         state.canvas.height = Math.max(100, Number(event.target.value) || 2700);
         render();
-        centerCanvas();
         scheduleProjectSave();
       });
       els.divisions.addEventListener('input', event => {
@@ -1388,14 +1427,11 @@ const state = {
       els.toggleRightBtn.addEventListener('click', () => {
         state.panels.right = !state.panels.right;
         renderPanels();
-        centerCanvas();
-        setTimeout(centerCanvas, 240);
       });
       compactWorkspace.addEventListener('change', event => {
         if (!event.matches) return;
         state.panels.right = false;
         renderPanels();
-        centerCanvas();
       });
       els.jsonInput.addEventListener('change', event => {
         if (event.target.files[0]) importProject(event.target.files[0]);
@@ -1455,6 +1491,7 @@ const state = {
           startMarquee(event);
         }
       });
+      els.canvasWrap.addEventListener('pointerdown', startWorkspacePan);
     }
 
     async function boot() {

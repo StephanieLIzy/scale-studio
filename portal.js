@@ -120,7 +120,6 @@ function render() {
   else if (path === '/workspace') renderWorkspace(query.get('view') || 'projects');
   else if (path.startsWith('/share/')) renderShare(path.split('/').pop());
   else renderLanding();
-  app.focus({ preventScroll: true });
 }
 
 function renderLanding() {
@@ -209,6 +208,16 @@ function renderWorkspace(view) {
   app.querySelectorAll('[data-view]').forEach(button => button.onclick = () => navigate(`/workspace?view=${button.dataset.view}`));
   app.querySelectorAll('[data-space]').forEach(button => button.onclick = () => createProject(button.dataset.space));
   app.querySelectorAll('[data-open-project]').forEach(button => button.onclick = () => openProject(button.dataset.openProject));
+  app.querySelectorAll('[data-project-card]').forEach(card => {
+    const open = () => openProject(card.dataset.projectCard);
+    card.onclick = event => { if (!event.target.closest('button')) open(); };
+    card.onkeydown = event => {
+      if ((event.key === 'Enter' || event.key === ' ') && !event.target.closest('button')) {
+        event.preventDefault();
+        open();
+      }
+    };
+  });
   app.querySelectorAll('[data-share-project]').forEach(button => button.onclick = () => createShare(button.dataset.shareProject));
   app.querySelectorAll('[data-rename-project]').forEach(button => button.onclick = () => renameProject(button.dataset.renameProject));
   document.getElementById('newProjectBtn')?.addEventListener('click', () => navigate('/workspace?view=templates'));
@@ -234,7 +243,7 @@ function projectVisual(project) {
 }
 
 function projectCard(project) {
-  return `<article class="content-card project-card">${projectVisual(project)}<div class="card-body"><small>${escapeHtml(project.spaceName)}</small><h2>${escapeHtml(project.name)}</h2><p>${project.widthMm} × ${project.heightMm} mm · 更新于 ${formatDate(project.updatedAt)}</p><div class="card-actions"><button class="button compact secondary" data-open-project="${project.id}" type="button">继续编辑</button><button class="icon-button" data-share-project="${project.id}" type="button" aria-label="复制只读分享链接">分享</button><button class="icon-button" data-rename-project="${project.id}" type="button" aria-label="重命名项目">•••</button></div></div></article>`;
+  return `<article class="content-card project-card" data-project-card="${project.id}" tabindex="0" role="link" aria-label="打开项目：${escapeHtml(project.name)}">${projectVisual(project)}<div class="card-body"><small>${escapeHtml(project.spaceName)}</small><h2>${escapeHtml(project.name)}</h2><p>${project.widthMm} × ${project.heightMm} mm · 更新于 ${formatDate(project.updatedAt)}</p><div class="card-actions"><button class="button compact secondary" data-open-project="${project.id}" type="button">继续编辑</button><button class="icon-button" data-share-project="${project.id}" type="button" aria-label="复制只读分享链接">分享</button><button class="icon-button" data-rename-project="${project.id}" type="button" aria-label="重命名项目">•••</button></div></div></article>`;
 }
 
 function spaceCard(space) {

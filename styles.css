@@ -105,14 +105,9 @@
     .app {
       height: 100vh;
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 320px;
+      grid-template-columns: minmax(0, 1fr);
       grid-template-rows: 76px 1fr;
       position: relative;
-      transition: grid-template-columns .22s ease;
-    }
-
-    .app.right-collapsed {
-      grid-template-columns: minmax(0, 1fr) 0;
     }
 
     .topbar {
@@ -168,6 +163,12 @@
       flex-wrap: nowrap;
       justify-content: flex-end;
     }
+
+    .toolbar-group { display: flex; align-items: center; gap: 6px; padding: 4px; border: 1px solid var(--line); border-radius: 15px; background: rgba(52,51,60,.045); }
+    .toolbar-group .toolbar-action { border-color: transparent; background: transparent; box-shadow: none; }
+    .toolbar-group .toolbar-action:hover { background: rgba(255,255,255,.9); }
+    .toolbar-group .toolbar-action.primary { background: var(--accent); }
+    .toolbar-divider { width: 1px; height: 26px; background: var(--line); }
 
     .toolbar button {
       height: 38px;
@@ -267,16 +268,24 @@
     }
 
     .side.right {
+      width: 392px;
+      position: fixed;
+      top: 76px;
+      right: 0;
+      bottom: 0;
+      z-index: 48;
       border-right: 0;
       border-left: 1px solid var(--line);
       display: flex;
       flex-direction: column;
       min-height: 0;
       overflow: hidden;
+      box-shadow: -18px 0 54px rgba(52,51,60,.1);
+      transition: transform .22s ease;
     }
 
     .side-head {
-      height: 34px;
+      min-height: 40px;
       display: flex;
       align-items: center;
       justify-content: flex-start;
@@ -294,9 +303,8 @@
     }
 
     .panel-toggle {
-      position: absolute;
-      top: 88px;
-      z-index: 45;
+      position: static;
+      flex: 0 0 auto;
       color: var(--muted);
       font-size: 18px;
       line-height: 1;
@@ -306,28 +314,23 @@
       border-radius: 12px;
       background: rgba(255, 253, 247, .94);
       backdrop-filter: blur(18px);
-      box-shadow: 0 14px 34px rgba(52, 51, 60, .14), inset 0 1px 0 rgba(255, 255, 255, .92);
-      transition: left .22s ease, right .22s ease, transform .16s ease, background .16s ease;
+      box-shadow: none;
+      transition: transform .18s ease, background .16s ease;
     }
-
-    .panel-toggle-right { right: 300px; }
-
-    .app.right-collapsed .panel-toggle-right { right: 12px; }
 
     .app.right-collapsed .side.right {
-      opacity: 0;
-      overflow: hidden;
-      padding: 0;
-      pointer-events: none;
-      visibility: hidden;
-      transform: translateX(16px);
+      transform: translateX(calc(100% - 62px));
     }
+
+    .app.right-collapsed .side.right .side-content,
+    .app.right-collapsed .side.right .side-head span { opacity: 0; pointer-events: none; }
 
     .side.right .side-content {
       display: grid;
       grid-template-rows: auto minmax(0, 1fr);
       flex: 1;
       min-height: 0;
+      transition: opacity .14s ease;
     }
 
     .side.right .section:last-child {
@@ -355,9 +358,12 @@
 
     .fields {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 10px;
     }
+
+    .side.right input { width: 100%; }
+    .side.right .toolbar { justify-content: flex-start; flex-wrap: wrap; }
 
     .fields.one { grid-template-columns: 1fr; }
 
@@ -384,23 +390,39 @@
       box-shadow: 0 10px 20px rgba(52, 51, 60, .1);
     }
 
-    .canvas-wrap {
+    .canvas-viewport {
+      grid-column: 1;
+      grid-row: 2;
       min-width: 0;
       min-height: 0;
-      overflow: auto;
-      background:
-        radial-gradient(circle at 50% 0%, rgba(255, 255, 255, .76), transparent 42%),
-        linear-gradient(180deg, rgba(238, 234, 224, .92), rgba(216, 208, 194, .45));
       position: relative;
+      overflow: hidden;
     }
 
+    .canvas-wrap {
+      position: absolute;
+      inset: 0;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      background:
+        radial-gradient(circle, rgba(52,51,60,.09) 0 1px, transparent 1.25px) 0 0 / 24px 24px,
+        radial-gradient(circle at 50% 0%, rgba(255, 255, 255, .76), transparent 42%),
+        linear-gradient(180deg, rgba(238, 234, 224, .92), rgba(216, 208, 194, .45));
+      cursor: grab;
+      touch-action: none;
+    }
+
+    .canvas-wrap.panning { cursor: grabbing; user-select: none; }
+
     .canvas-view-switch {
-      position: sticky;
-      top: 14px;
+      position: absolute;
+      top: 18px;
       left: 50%;
-      z-index: 35;
+      z-index: 45;
       width: 260px;
-      margin: 14px auto -52px;
+      margin: 0;
+      transform: translateX(-50%);
       padding: 5px;
       border-color: rgba(52, 51, 60, .14);
       background: rgba(255, 253, 247, .86);
@@ -429,22 +451,20 @@
     }
 
     .stage-shell {
-      position: relative;
-      width: max-content;
-      min-width: 100%;
-      min-height: 100%;
-      padding: 64px 72px 72px;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
+      position: absolute;
+      inset: 0;
     }
 
     .stage-frame {
-      position: relative;
+      position: absolute;
+      left: 50%;
+      top: 50%;
       width: max-content;
       height: max-content;
       box-shadow: var(--shadow);
       border-radius: 3px;
+      transform: translate(-50%, -50%);
+      transform-origin: center;
     }
 
     .ruler-top,
@@ -563,6 +583,7 @@
       width: 100%;
       height: 100%;
       object-fit: contain;
+      image-rendering: auto;
       pointer-events: none;
       user-select: none;
     }
@@ -723,7 +744,7 @@
     }
 
     @media (max-width: 900px) {
-      :root { --compact-panel-width: min(320px, calc(100vw - 52px)); }
+      :root { --compact-panel-width: min(360px, calc(100vw - 44px)); }
 
       body { overflow: hidden; }
       .app,
@@ -735,12 +756,12 @@
       }
 
       .topbar,
-      .canvas-wrap {
+      .canvas-viewport {
         grid-column: 1;
       }
 
       .topbar { grid-row: 1; }
-      .canvas-wrap { grid-row: 2; }
+      .canvas-viewport { grid-row: 2; }
 
       .side.right {
         position: fixed;
@@ -749,17 +770,13 @@
         width: var(--compact-panel-width);
         max-height: none;
         z-index: 50;
-        background: rgba(248, 251, 250, .96);
-        box-shadow: 18px 0 46px rgba(5, 48, 70, .13);
-      }
-
-      .side.right {
         right: 0;
         overflow: hidden;
-        box-shadow: -18px 0 46px rgba(5, 48, 70, .13);
+        background: rgba(255, 253, 247, .97);
+        box-shadow: -18px 0 46px rgba(52,51,60,.13);
       }
 
-      .app.right-collapsed .side.right { transform: translateX(105%); }
+      .app.right-collapsed .side.right { transform: translateX(calc(100% - 54px)); }
 
       .topbar {
         align-items: center;
@@ -785,29 +802,17 @@
         gap: 7px;
       }
 
+      .toolbar-divider { display: none; }
+
       .toolbar button {
         height: 36px;
         padding: 0 10px;
         border-radius: 11px;
       }
 
-      .canvas-wrap {
-        min-height: 0;
-      }
-
       .stage-shell {
-        min-width: max-content;
-        justify-content: flex-start;
+        inset: 0;
       }
-
-      .panel-toggle {
-        position: fixed;
-        top: 80px;
-        z-index: 55;
-      }
-
-      .panel-toggle-right { right: calc(var(--compact-panel-width) - 20px); }
-      .app.right-collapsed .panel-toggle-right { right: 10px; }
     }
 
     @media (max-width: 640px) {
@@ -817,6 +822,7 @@
       .toolbar {
         gap: 6px;
       }
+      .toolbar-group { gap: 3px; padding: 2px; }
       .toolbar button {
         height: 34px;
         padding: 0 8px;
@@ -826,9 +832,6 @@
       }
       .canvas-settings-menu .fields {
         grid-template-columns: 1fr;
-      }
-      .stage-shell {
-        padding: 48px 48px 56px;
       }
     }
 
@@ -844,5 +847,5 @@
       #canvasSettingsBtn { width: auto; padding-inline: 9px; }
       #canvasSettingsBtn .button-label { display: inline; font-size: 11px; }
       .canvas-settings-menu { position: fixed; top: 62px; right: 8px; }
-      .canvas-view-switch { width: 220px; }
+      .canvas-view-switch { width: 220px; top: 12px; }
     }
