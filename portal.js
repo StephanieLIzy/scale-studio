@@ -7,7 +7,13 @@ const spaces = [
     id: 'record-wall', name: '唱片墙', store: '上海店', widthCm: 198, heightCm: 300,
     dimensions: ['整体 198 × 300 cm', '6 × 9 单元', '单元 32 × 32 cm', '圆环 R13 / R9 / R6 cm'],
     source: '施工尺寸图与实拍图已录入；实拍图已做正视校准',
-    image: 'assets/shanghai-record-wall-front-v3.jpg', kind: 'photo'
+    image: 'assets/shanghai-record-wall-front-web.jpg', kind: 'photo'
+  },
+  {
+    id: 'bar-table-lightbox', name: '吧台桌灯箱', store: '上海店', widthCm: 71, heightCm: 150,
+    dimensions: ['71 × 150 cm', '正面灯箱画面', '纯色画布'],
+    source: '用户提供真实尺寸；第一版使用简洁轮廓画布',
+    image: null, kind: 'outline'
   },
   {
     id: 'peg-wall', name: '洞洞墙', store: '上海店', widthCm: 470, heightCm: 200,

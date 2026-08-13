@@ -68,14 +68,14 @@ const state = {
     const TEMPLATE_CONFIG = {
       'record-wall': {
         name: '上海店 · 唱片墙',
-        version: 3,
+        version: 4,
         width: 1980,
         height: 3000,
         divisions: 6,
         gridStep: 100,
         canvasMode: 'solid',
         background: 'white',
-        photo: 'assets/shanghai-record-wall-front-v3.jpg',
+        photo: 'assets/shanghai-record-wall-front-web.jpg',
         constructionImage: 'assets/shanghai-record-wall-construction.png',
         geometry: {
           columns: 6,
@@ -86,6 +86,17 @@ const state = {
           radii: [130, 90, 60]
         },
         note: '整体 1980 × 3000 mm · 6 × 9 单元 · 单元 320 mm · 圆环 R130 / R90 / R60'
+      },
+      'bar-table-lightbox': {
+        name: '上海店 · 吧台桌灯箱',
+        version: 1,
+        width: 710,
+        height: 1500,
+        divisions: 1,
+        gridStep: 100,
+        canvasMode: 'solid',
+        background: 'white',
+        note: '710 × 1500 mm · 正面灯箱画面'
       },
       'peg-wall': {
         name: '上海店 · 洞洞墙',
@@ -296,7 +307,7 @@ const state = {
       els.solidModeBtn.classList.toggle('active', state.canvas.mode === 'solid');
       els.whiteBgBtn.classList.toggle('active', state.canvas.bg === 'white');
       els.blackBgBtn.classList.toggle('active', state.canvas.bg === 'black');
-      els.templateViewSwitch.hidden = !state.template;
+      els.templateViewSwitch.hidden = !state.template?.photo;
       els.outlineViewBtn.classList.toggle('active', state.viewMode === 'outline');
       els.photoViewBtn.classList.toggle('active', state.viewMode === 'photo');
       els.photoViewBtn.disabled = !state.template?.photo;
