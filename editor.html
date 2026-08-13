@@ -3,45 +3,60 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Scale Studio 编辑器</title>
-  <link rel="stylesheet" href="styles.css?v=20260813-1">
+  <title>AGI Bar 空间预演 · 编辑器</title>
+  <link rel="stylesheet" href="styles.css?v=20260813-2">
 </head>
 <body>
-  <section class="project-home" id="projectHome">
-    <header class="project-hero">
-      <div class="brand">
-        <div class="brand-line">
-          <strong>Scale Studio</strong>
-          <em class="creator">Created by Stephanie</em>
-        </div>
-        <span>本机项目库</span>
-      </div>
-      <div class="toolbar"><a href="index.html#/workspace?view=projects" style="color:inherit;text-decoration:none">返回我的项目</a><button class="primary" id="projectHomeNewBtn" type="button">新建项目</button></div>
-    </header>
-
-    <main class="project-home-main">
-      <div class="project-home-title">
-        <h1>项目列表</h1>
-        <p id="projectHomeStatus">项目会自动保存到当前浏览器。</p>
-      </div>
-      <div class="project-grid" id="projectGrid"></div>
-    </main>
-  </section>
-
   <div class="app hidden" id="app">
     <header class="topbar">
-      <div class="brand">
-        <div class="brand-line">
-          <strong>Scale Studio</strong>
-          <em class="creator">Created by Stephanie</em>
-        </div>
-        <span id="canvasSummary">4800 × 2700 mm workspace</span>
-      </div>
+      <a class="editor-brand" href="index.html#/workspace?view=projects" aria-label="返回我的项目">
+        <img src="assets/agi-bar-logo.png" alt="AGI Bar">
+        <span class="editor-brand-copy">
+          <strong>空间预演</strong>
+          <small id="canvasSummary">4800 × 2700 mm 画布</small>
+        </span>
+      </a>
+      <span class="save-status" id="projectHomeStatus" aria-live="polite">自动保存</span>
       <div class="toolbar">
         <button class="toolbar-action back-action" id="backProjectsBtn" type="button" title="返回我的项目">
           <span class="button-icon" aria-hidden="true">←</span>
           <span class="button-label">我的项目</span>
         </button>
+        <div class="menu-wrap">
+          <button class="toolbar-action" id="canvasSettingsBtn" type="button" aria-haspopup="true" aria-expanded="false" title="画布设置">
+            <span class="button-label">画布设置</span>
+          </button>
+          <div class="export-menu canvas-settings-menu" id="canvasSettingsMenu">
+            <div class="menu-heading">
+              <strong>画布基础</strong>
+              <span>尺寸、网格与背景</span>
+            </div>
+            <div class="fields">
+              <label>宽 mm<input id="canvasW" type="number" min="100" value="4800"></label>
+              <label>高 mm<input id="canvasH" type="number" min="100" value="2700"></label>
+              <label>等比分割<input id="divisions" type="number" min="1" max="24" value="4"></label>
+              <label>网格间距 mm<input id="gridStep" type="number" min="5" value="100"></label>
+            </div>
+            <div class="settings-row">
+              <span>画布类型</span>
+              <div class="segmented" aria-label="画布类型">
+                <button id="gridModeBtn" class="active" type="button">网格</button>
+                <button id="solidModeBtn" type="button">纯色</button>
+              </div>
+            </div>
+            <div class="settings-row">
+              <span>背景颜色</span>
+              <div class="segmented" aria-label="背景颜色">
+                <button id="whiteBgBtn" class="active" type="button">白色</button>
+                <button id="blackBgBtn" type="button">黑色</button>
+              </div>
+            </div>
+            <div class="settings-row zoom-setting">
+              <label>缩放<input id="zoom" type="range" min="5" max="200" value="20"></label>
+              <input id="zoomReadout" readonly value="20%" aria-label="当前缩放比例">
+            </div>
+          </div>
+        </div>
         <div class="menu-wrap">
           <button class="primary toolbar-action" id="uploadMenuBtn" type="button" aria-haspopup="true" aria-expanded="false" title="上传">
             <span class="button-icon" aria-hidden="true">↑</span>
@@ -67,95 +82,13 @@
       </div>
     </header>
 
-    <button class="icon panel-toggle panel-toggle-left" id="toggleLeftBtn" title="收起画布设置" aria-controls="canvasSettingsPanel" type="button">‹</button>
-    <button class="icon panel-toggle panel-toggle-right" id="toggleRightBtn" title="收起 Logo 面板" aria-controls="logoPanel" type="button">›</button>
-
-    <aside class="side" id="canvasSettingsPanel">
-      <div class="side-head">
-        <span>画布设置</span>
-      </div>
-      <div class="side-content">
-        <section class="section">
-          <h2>画布</h2>
-          <div class="fields">
-            <label>宽 mm
-              <input id="canvasW" type="number" min="100" value="4800">
-            </label>
-            <label>高 mm
-              <input id="canvasH" type="number" min="100" value="2700">
-            </label>
-            <label>等比分割
-              <input id="divisions" type="number" min="1" max="24" value="4">
-            </label>
-            <label>网格间距 mm
-              <input id="gridStep" type="number" min="5" value="100">
-            </label>
-          </div>
-        </section>
-
-        <section class="section">
-          <h2>背景</h2>
-          <div class="fields one">
-            <div class="segmented" id="templateViewSwitch" aria-label="店内模板视图">
-              <button id="outlineViewBtn" class="active" type="button">轮廓</button>
-              <button id="photoViewBtn" type="button">实拍</button>
-            </div>
-            <div class="segmented" aria-label="画布类型">
-              <button id="gridModeBtn" class="active" type="button">网格</button>
-              <button id="solidModeBtn" type="button">纯色</button>
-            </div>
-            <div class="segmented" aria-label="背景颜色">
-              <button id="whiteBgBtn" class="active" type="button">白</button>
-              <button id="blackBgBtn" type="button">黑</button>
-            </div>
-          </div>
-        </section>
-
-        <section class="section">
-          <h2>视图</h2>
-          <div class="fields">
-            <label>缩放
-              <input id="zoom" type="range" min="5" max="200" value="20">
-            </label>
-            <label>当前比例
-              <input id="zoomReadout" readonly value="20%">
-            </label>
-          </div>
-        </section>
-
-        <section class="section">
-          <h2>快捷键</h2>
-          <div class="shortcut-list">
-            <div class="shortcut-row">
-              <span class="shortcut-keys"><span class="kbd">Delete</span></span>
-              <span>删除选中物料</span>
-            </div>
-            <div class="shortcut-row">
-              <span class="shortcut-keys"><span class="kbd">Ctrl</span>/<span class="kbd">⌘</span> + <span class="kbd">C</span></span>
-              <span>复制</span>
-            </div>
-            <div class="shortcut-row">
-              <span class="shortcut-keys"><span class="kbd">Ctrl</span>/<span class="kbd">⌘</span> + <span class="kbd">V</span></span>
-              <span>粘贴</span>
-            </div>
-            <div class="shortcut-row">
-              <span class="shortcut-keys"><span class="kbd">↑</span><span class="kbd">↓</span><span class="kbd">←</span><span class="kbd">→</span></span>
-              <span>移动 1mm</span>
-            </div>
-            <div class="shortcut-row">
-              <span class="shortcut-keys"><span class="kbd">Shift</span> + <span class="kbd">方向键</span></span>
-              <span>移动 10mm</span>
-            </div>
-            <div class="shortcut-row">
-              <span class="shortcut-keys">拖动画布空白处</span>
-              <span>框选多个物料</span>
-            </div>
-          </div>
-        </section>
-      </div>
-    </aside>
+    <button class="icon panel-toggle panel-toggle-right" id="toggleRightBtn" title="收起物料属性" aria-controls="logoPanel" type="button">›</button>
 
     <main class="canvas-wrap" id="canvasWrap">
+      <div class="segmented canvas-view-switch" id="templateViewSwitch" aria-label="店内模板视图">
+        <button id="outlineViewBtn" class="active" type="button">轮廓预览</button>
+        <button id="photoViewBtn" type="button">实景预览</button>
+      </div>
       <div class="stage-shell">
         <div class="stage-frame" id="stageFrame">
           <div class="ruler-top" id="rulerTop"></div>
@@ -166,17 +99,14 @@
     </main>
 
     <aside class="side right" id="logoPanel">
-      <div class="side-head">
-        <span>Logo 面板</span>
-      </div>
+      <div class="side-head"><span>物料属性</span></div>
       <div class="side-content">
         <section class="section">
-          <h2>选中 Logo</h2>
-          <div id="selectedPanel" class="selected-empty">选择一个 logo 后，可以在这里精确调整它的实际尺寸和位置。</div>
+          <h2>选中物料</h2>
+          <div id="selectedPanel" class="selected-empty">选择一个物料后，可以在这里精确调整实际尺寸和位置。</div>
         </section>
-
         <section class="section">
-          <h2>Logo 列表</h2>
+          <h2>物料列表</h2>
           <div class="logo-list" id="logoList"></div>
         </section>
       </div>
@@ -185,7 +115,6 @@
 
   <input class="hidden-input" id="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" multiple>
   <input class="hidden-input" id="jsonInput" type="file" accept="application/json">
-
-  <script src="app.js?v=20260813-1"></script>
+  <script src="app.js?v=20260813-2"></script>
 </body>
 </html>

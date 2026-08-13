@@ -135,12 +135,8 @@ function renderLanding() {
           <a class="button ghost" href="editor.html?mode=guest">打开自由画布</a>
         </div>
       </div>
-      <div class="brand-canvas" aria-label="Scale Studio 品牌图案">
-        <span class="brand-orbit orbit-one"></span>
-        <span class="brand-orbit orbit-two"></span>
-        <span class="brand-square square-one"></span>
-        <span class="brand-square square-two"></span>
-        <span class="brand-word">SCALE</span>
+      <div class="brand-canvas" aria-label="AGI Bar 品牌图案">
+        <img class="brand-logo-large" src="assets/agi-bar-logo.png" alt="AGI Bar 知识蒸馏">
         <small>SIZE / SPACE / PREVIEW</small>
       </div>
     </section>`;

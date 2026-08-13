@@ -10,14 +10,11 @@ const state = {
       activeProjectId: null,
       saveTimer: null,
       workspaceOpen: false,
-      panels: { left: true, right: true }
+      panels: { right: true }
     };
 
     const els = {
       app: document.getElementById('app'),
-      projectHome: document.getElementById('projectHome'),
-      projectGrid: document.getElementById('projectGrid'),
-      projectHomeNewBtn: document.getElementById('projectHomeNewBtn'),
       projectHomeStatus: document.getElementById('projectHomeStatus'),
       backProjectsBtn: document.getElementById('backProjectsBtn'),
       stage: document.getElementById('stage'),
@@ -38,6 +35,8 @@ const state = {
       templateViewSwitch: document.getElementById('templateViewSwitch'),
       outlineViewBtn: document.getElementById('outlineViewBtn'),
       photoViewBtn: document.getElementById('photoViewBtn'),
+      canvasSettingsBtn: document.getElementById('canvasSettingsBtn'),
+      canvasSettingsMenu: document.getElementById('canvasSettingsMenu'),
       uploadMenuBtn: document.getElementById('uploadMenuBtn'),
       uploadMenu: document.getElementById('uploadMenu'),
       uploadImagesBtn: document.getElementById('uploadImagesBtn'),
@@ -52,7 +51,6 @@ const state = {
       exportCsvBtn: document.getElementById('exportCsvBtn'),
       saveProjectBtn: document.getElementById('saveProjectBtn'),
       loadProjectBtn: document.getElementById('loadProjectBtn'),
-      toggleLeftBtn: document.getElementById('toggleLeftBtn'),
       toggleRightBtn: document.getElementById('toggleRightBtn')
     };
 
@@ -92,15 +90,11 @@ const state = {
         note: '测试数据，不用于实际制作'
       }
     };
-    const DB_NAME = 'scale-studio-projects';
-    const DB_VERSION = 1;
-    const STORE_NAME = 'projects';
     const GUEST_STORE_KEY = 'scale-studio-guest-projects-v1';
     const isGuestMode = new URLSearchParams(location.search).get('mode') === 'guest';
     const isReadOnlyMode = new URLSearchParams(location.search).get('readonly') === '1';
     const compactWorkspace = window.matchMedia('(max-width: 900px)');
     const screen = value => `${value * state.zoom}px`;
-    let dbPromise = null;
 
     function activeTemplateFromUrl() {
       const params = new URLSearchParams(location.search);
@@ -249,7 +243,6 @@ const state = {
       renderLogos();
       renderSelectedPanel();
       renderLogoList();
-      renderProjectHome();
     }
 
     function centerCanvas() {
@@ -260,15 +253,10 @@ const state = {
     }
 
     function renderPanels() {
-      els.app.classList.toggle('left-collapsed', !state.panels.left);
       els.app.classList.toggle('right-collapsed', !state.panels.right);
-      els.toggleLeftBtn.textContent = state.panels.left ? '‹' : '›';
       els.toggleRightBtn.textContent = state.panels.right ? '›' : '‹';
-      els.toggleLeftBtn.title = state.panels.left ? '收起画布设置' : '展开画布设置';
-      els.toggleRightBtn.title = state.panels.right ? '收起 Logo 面板' : '展开 Logo 面板';
-      els.toggleLeftBtn.setAttribute('aria-label', els.toggleLeftBtn.title);
+      els.toggleRightBtn.title = state.panels.right ? '收起物料属性' : '展开物料属性';
       els.toggleRightBtn.setAttribute('aria-label', els.toggleRightBtn.title);
-      els.toggleLeftBtn.setAttribute('aria-expanded', String(state.panels.left));
       els.toggleRightBtn.setAttribute('aria-expanded', String(state.panels.right));
     }
 
@@ -331,29 +319,13 @@ const state = {
       els.uploadMenuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
     }
 
+    function setCanvasSettingsMenu(open) {
+      els.canvasSettingsMenu.classList.toggle('open', open);
+      els.canvasSettingsBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
     function setProjectStatus(message) {
       els.projectHomeStatus.textContent = message;
-    }
-
-    function openProjectDb() {
-      if (dbPromise) return dbPromise;
-      dbPromise = new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
-        request.onupgradeneeded = () => {
-          const db = request.result;
-          if (!db.objectStoreNames.contains(STORE_NAME)) {
-            db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-          }
-        };
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-      });
-      return dbPromise;
-    }
-
-    async function getProjectStore(mode = 'readonly') {
-      const db = await openProjectDb();
-      return db.transaction(STORE_NAME, mode).objectStore(STORE_NAME);
     }
 
     async function readProjects() {
@@ -365,12 +337,18 @@ const state = {
           return [];
         }
       }
-      const store = await getProjectStore();
-      return new Promise((resolve, reject) => {
-        const request = store.getAll();
-        request.onsuccess = () => resolve(request.result || []);
-        request.onerror = () => reject(request.error);
-      });
+      const portalState = JSON.parse(localStorage.getItem('scale-studio-mvp-state-v1') || '{}');
+      const requestedProjectId = new URLSearchParams(location.search).get('project');
+      return (portalState.projects || [])
+        .filter(project => !requestedProjectId || project.id === requestedProjectId)
+        .map(project => ({
+        id: `editor-${project.id}`,
+        portalProjectId: project.id,
+        name: project.name,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+          payload: project.editorPayload || {}
+        }));
     }
 
     async function writeProject(project) {
@@ -380,23 +358,19 @@ const state = {
         sessionStorage.setItem(GUEST_STORE_KEY, JSON.stringify(next));
         return project;
       }
-      const store = await getProjectStore('readwrite');
-      return new Promise((resolve, reject) => {
-        const request = store.put(project);
-        request.onsuccess = () => resolve(project);
-        request.onerror = () => reject(request.error);
-      });
-    }
-
-    function formatProjectTime(value) {
-      const date = new Date(value);
-      if (!Number.isFinite(date.getTime())) return '刚刚';
-      return date.toLocaleString('zh-CN', {
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
+      if (!project.portalProjectId) return project;
+      const portalState = JSON.parse(localStorage.getItem('scale-studio-mvp-state-v1') || '{}');
+      if (!Array.isArray(portalState.projects)) return project;
+      const index = portalState.projects.findIndex(item => item.id === project.portalProjectId);
+      if (index < 0) return project;
+      portalState.projects[index] = {
+        ...portalState.projects[index],
+        name: project.name,
+        updatedAt: project.updatedAt,
+        editorPayload: project.payload
+      };
+      localStorage.setItem('scale-studio-mvp-state-v1', JSON.stringify(portalState));
+      return project;
     }
 
     function currentProjectName() {
@@ -426,66 +400,18 @@ const state = {
       };
     }
 
-    function renderProjectHome() {
-      if (!els.projectGrid) return;
-      if (!state.projects.length) {
-        els.projectGrid.innerHTML = `
-          <div class="empty-projects">
-            <strong>还没有项目</strong>
-            <span>点右上角「新建项目」开始第一张画布。</span>
-          </div>
-        `;
-        return;
-      }
-
-      els.projectGrid.innerHTML = '';
-      [...state.projects]
-        .sort((a, b) => b.updatedAt - a.updatedAt)
-        .forEach(project => {
-          const count = Array.isArray(project.payload?.logos) ? project.payload.logos.length : 0;
-          const card = document.createElement('article');
-          card.className = `project-card${project.id === state.activeProjectId ? ' active' : ''}`;
-          card.innerHTML = `
-            <input class="project-title-input" value="${escapeHtml(project.name || '未命名项目')}" aria-label="项目名称">
-            <div class="project-meta">
-              <span>${project.payload?.canvas?.width || DEFAULT_CANVAS.width} × ${project.payload?.canvas?.height || DEFAULT_CANVAS.height} mm</span>
-              <span>${count} 个物料</span>
-            </div>
-            <div class="project-card-footer">
-              <span>${formatProjectTime(project.updatedAt)} 保存</span>
-              <button type="button">打开</button>
-            </div>
-          `;
-          card.querySelector('.project-title-input').addEventListener('input', event => {
-            project.name = event.target.value.trim() || '未命名项目';
-            project.updatedAt = Date.now();
-            writeProject(project)
-              .then(() => setProjectStatus('已保存到本机。'))
-              .catch(error => {
-                console.error(error);
-                setProjectStatus('项目重命名失败。');
-              });
-          });
-          card.querySelector('button').addEventListener('click', () => openProject(project.id));
-          els.projectGrid.appendChild(card);
-        });
-    }
-
     function showProjectHome() {
-      state.workspaceOpen = false;
-      state.activeProjectId = null;
-      els.projectHome.classList.remove('hidden');
-      els.app.classList.add('hidden');
-      renderProjectHome();
+      const returnTarget = new URLSearchParams(location.search).get('return');
+      location.href = !isGuestMode || returnTarget === 'workspace'
+        ? 'index.html#/workspace?view=projects'
+        : 'index.html#/';
     }
 
     function showWorkspace() {
       state.workspaceOpen = true;
       if (compactWorkspace.matches) {
-        state.panels.left = false;
         state.panels.right = false;
       }
-      els.projectHome.classList.add('hidden');
       els.app.classList.remove('hidden');
       render();
       centerCanvas();
@@ -519,9 +445,8 @@ const state = {
           .filter(item => item.id !== project.id)
           .concat(project);
         state.saveTimer = null;
-        setProjectStatus('已保存到本机。');
+        setProjectStatus('已保存');
         syncPortalProject(project);
-        renderProjectHome();
       };
 
       if (immediate) {
@@ -564,36 +489,6 @@ const state = {
       });
     }
 
-    async function openProject(id) {
-      await persistActiveProject({ immediate: true });
-      const project = state.projects.find(item => item.id === id);
-      if (!project) return;
-      state.activeProjectId = project.id;
-      applyProjectPayload(project.payload);
-      showWorkspace();
-    }
-
-    async function createNewProject() {
-      await persistActiveProject({ immediate: true });
-      if (state.projects.length >= 20) {
-        setProjectStatus('每位成员最多创建 20 个项目。');
-        return;
-      }
-      state.canvas = { ...DEFAULT_CANVAS };
-      state.zoom = 0.2;
-      state.logos = [];
-      state.template = null;
-      state.viewMode = 'outline';
-      applyTemplateToNewProject();
-      clearSelection();
-      const project = createProjectRecord(`新项目 ${state.projects.length + 1}`);
-      state.activeProjectId = project.id;
-      state.projects = state.projects.concat(project);
-      await writeProject(project);
-      syncInputs();
-      showWorkspace();
-    }
-
     async function initProjects() {
       const requestedProjectId = new URLSearchParams(location.search).get('project');
       const requestedTemplate = activeTemplateFromUrl();
@@ -634,7 +529,7 @@ const state = {
         }
       } catch (error) {
         console.error(error);
-        setProjectStatus('本地项目库不可用。');
+        setProjectStatus('项目读取失败。');
       }
     }
 
@@ -801,7 +696,7 @@ const state = {
       }
       if (!logo) {
         els.selectedPanel.className = 'selected-empty';
-        els.selectedPanel.innerHTML = '选择一个 logo 后，可以在这里精确调整它的实际尺寸和位置。';
+        els.selectedPanel.innerHTML = '选择一个物料后，可以在这里精确调整它的实际尺寸和位置。';
         return;
       }
 
@@ -892,7 +787,7 @@ const state = {
 
     function renderLogoList() {
       if (!state.logos.length) {
-        els.logoList.innerHTML = '<p class="status">还没有上传 logo。</p>';
+        els.logoList.innerHTML = '<p class="status">还没有上传物料。</p>';
         return;
       }
 
@@ -904,7 +799,7 @@ const state = {
           row.className = `logo-row${isSelected(logo.id) ? ' active' : ''}`;
           row.innerHTML = `
             <div>
-              <input class="logo-name-input" value="${escapeHtml(logo.name)}" aria-label="Logo 名称">
+              <input class="logo-name-input" value="${escapeHtml(logo.name)}" aria-label="物料名称">
               <span>${Math.round(logo.width)} × ${Math.round(logo.height)} mm · ${Math.round(logo.rotation || 0)}°</span>
             </div>
             <button class="icon" title="删除">×</button>
@@ -1297,7 +1192,7 @@ const state = {
         }
       }
 
-      ctx.strokeStyle = 'rgba(0,122,255,.8)';
+      ctx.strokeStyle = 'rgba(228,166,0,.85)';
       ctx.lineWidth = 4;
       const part = state.canvas.width / state.canvas.divisions;
       for (let i = 1; i < state.canvas.divisions; i++) {
@@ -1419,17 +1314,10 @@ const state = {
         render();
         scheduleProjectSave();
       });
-      els.projectHomeNewBtn.addEventListener('click', () => {
-        createNewProject().catch(error => {
-          console.error(error);
-          setProjectStatus('新建失败。');
-        });
-      });
       els.backProjectsBtn.addEventListener('click', () => {
         persistActiveProject({ immediate: true })
           .then(() => {
-            if (new URLSearchParams(location.search).get('project')) location.href = 'index.html#/workspace?view=projects';
-            else showProjectHome();
+            showProjectHome();
           })
           .catch(error => {
             console.error(error);
@@ -1440,6 +1328,7 @@ const state = {
         event.stopPropagation();
         setUploadMenu(!els.uploadMenu.classList.contains('open'));
         setExportMenu(false);
+        setCanvasSettingsMenu(false);
       });
       els.uploadMenu.addEventListener('click', event => event.stopPropagation());
       els.uploadImagesBtn.addEventListener('click', () => {
@@ -1449,6 +1338,7 @@ const state = {
       els.exportMenuBtn.addEventListener('click', event => {
         event.stopPropagation();
         setUploadMenu(false);
+        setCanvasSettingsMenu(false);
         setExportMenu(!els.exportMenu.classList.contains('open'));
       });
       els.exportMenu.addEventListener('click', event => event.stopPropagation());
@@ -1488,23 +1378,21 @@ const state = {
         setExportMenu(false);
         els.jsonInput.click();
       });
-      els.toggleLeftBtn.addEventListener('click', () => {
-        state.panels.left = !state.panels.left;
-        if (compactWorkspace.matches && state.panels.left) state.panels.right = false;
-        renderPanels();
-        centerCanvas();
-        setTimeout(centerCanvas, 240);
+      els.canvasSettingsBtn.addEventListener('click', event => {
+        event.stopPropagation();
+        setExportMenu(false);
+        setUploadMenu(false);
+        setCanvasSettingsMenu(!els.canvasSettingsMenu.classList.contains('open'));
       });
+      els.canvasSettingsMenu.addEventListener('click', event => event.stopPropagation());
       els.toggleRightBtn.addEventListener('click', () => {
         state.panels.right = !state.panels.right;
-        if (compactWorkspace.matches && state.panels.right) state.panels.left = false;
         renderPanels();
         centerCanvas();
         setTimeout(centerCanvas, 240);
       });
       compactWorkspace.addEventListener('change', event => {
         if (!event.matches) return;
-        state.panels.left = false;
         state.panels.right = false;
         renderPanels();
         centerCanvas();
@@ -1519,6 +1407,7 @@ const state = {
         if (event.key === 'Escape') {
           setExportMenu(false);
           setUploadMenu(false);
+          setCanvasSettingsMenu(false);
         }
         if ((event.ctrlKey || event.metaKey) && ['+', '=', '-', '0'].includes(event.key)) {
           event.preventDefault();
@@ -1557,6 +1446,7 @@ const state = {
       window.addEventListener('click', () => {
         setExportMenu(false);
         setUploadMenu(false);
+        setCanvasSettingsMenu(false);
       });
 
       els.stage.addEventListener('pointerdown', event => {
@@ -1575,15 +1465,10 @@ const state = {
         document.body.classList.add('read-only-mode');
         setProjectStatus('授权已过期：项目只读，可查看与导出。');
       }
-      if (isGuestMode && state.projects.length) {
-        state.activeProjectId = state.projects[0].id;
-        applyProjectPayload(state.projects[0].payload);
-        showWorkspace();
-      } else if (new URLSearchParams(location.search).get('project')) {
-        showWorkspace();
-      } else {
-        showProjectHome();
-      }
+      if (!state.activeProjectId && state.projects.length) state.activeProjectId = state.projects[0].id;
+      const active = state.projects.find(project => project.id === state.activeProjectId);
+      if (active) applyProjectPayload(active.payload);
+      showWorkspace();
     }
 
     boot();
