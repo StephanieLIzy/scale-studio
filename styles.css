@@ -140,12 +140,18 @@
       mix-blend-mode: multiply;
     }
 
-    .editor-brand-copy { display: grid; gap: 4px; }
-    .editor-brand-copy strong { font-size: 15px; line-height: 1; }
+    .editor-brand-copy {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      min-width: 0;
+    }
+    .editor-brand-copy strong { font-size: 15px; line-height: 1; white-space: nowrap; }
     .editor-brand-copy small {
       color: var(--muted);
       font-size: 11px;
       letter-spacing: .01em;
+      white-space: nowrap;
     }
 
     .save-status {
@@ -411,6 +417,7 @@
         linear-gradient(180deg, rgba(238, 234, 224, .92), rgba(216, 208, 194, .45));
       cursor: grab;
       touch-action: none;
+      overscroll-behavior: none;
     }
 
     .canvas-wrap.panning { cursor: grabbing; user-select: none; }
@@ -702,6 +709,13 @@
       color: var(--muted);
       font-size: 13px;
       line-height: 1.6;
+    }
+
+    .format-note {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.4;
     }
 
     .hidden-input { display: none; }

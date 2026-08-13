@@ -275,9 +275,8 @@ const state = {
       els.stage.classList.toggle('template-photo', showPhoto);
       els.stage.style.setProperty('--template-photo', state.template?.photo ? `url("${state.template.photo}")` : 'none');
       els.canvasSummary.textContent = state.template
-        ? `${state.template.name} · ${state.template.note}`
-        : `${state.canvas.width} × ${state.canvas.height} mm workspace`;
-      if (isReadOnlyMode) els.canvasSummary.textContent = `只读 · ${els.canvasSummary.textContent}`;
+        ? state.template.name
+        : '自由画布';
       els.zoomReadout.value = `${Math.round(state.zoom * 100)}%`;
       els.gridModeBtn.classList.toggle('active', state.canvas.mode === 'grid');
       els.solidModeBtn.classList.toggle('active', state.canvas.mode === 'solid');
@@ -731,10 +730,11 @@ const state = {
             <input id="editRotation" type="number" value="${Math.round(logo.rotation || 0)}">
           </label>
         </div>
+        ${logo.isVector ? '<p class="format-note">SVG · 已保留矢量清晰度</p>' : ''}
         <div class="toolbar" style="justify-content:flex-start;margin-top:10px">
           <button id="bringFrontBtn">置顶</button>
           <button id="sendBackBtn">置底</button>
-          <button id="trimLogoBtn" ${logo.isVector ? 'disabled title="SVG 已保持矢量格式"' : ''}>${logo.isVector ? 'SVG 矢量' : '裁剪透明边'}</button>
+          ${logo.isVector ? '' : '<button id="trimLogoBtn">裁剪透明边</button>'}
           <button id="deleteBtn" style="color:var(--danger)">删除</button>
         </div>
       `;
@@ -770,13 +770,16 @@ const state = {
         render();
         scheduleProjectSave();
       });
-      document.getElementById('trimLogoBtn').addEventListener('click', event => {
-        event.target.textContent = '裁剪中...';
-        cropLogoToContent(logo).catch(error => {
-          console.error(error);
-          event.target.textContent = '裁剪失败';
+      const trimLogoBtn = document.getElementById('trimLogoBtn');
+      if (trimLogoBtn) {
+        trimLogoBtn.addEventListener('click', event => {
+          event.target.textContent = '裁剪中...';
+          cropLogoToContent(logo).catch(error => {
+            console.error(error);
+            event.target.textContent = '裁剪失败';
+          });
         });
-      });
+      }
       document.getElementById('deleteBtn').addEventListener('click', deleteSelected);
     }
 
@@ -1120,20 +1123,33 @@ const state = {
 
     function startWorkspacePan(event) {
       if (event.button !== 0) return;
-      if (event.target !== els.canvasWrap && event.target !== els.stageShell) return;
+      if (event.shiftKey) return;
+      if (event.target.closest?.('.logo')) return;
+      if (event.target.closest?.('.canvas-view-switch')) return;
       event.preventDefault();
       const startX = event.clientX;
       const startY = event.clientY;
       const startPan = { ...state.pan };
+      let moved = false;
       els.canvasWrap.classList.add('panning');
 
       const move = moveEvent => {
-        state.pan.x = startPan.x + moveEvent.clientX - startX;
-        state.pan.y = startPan.y + moveEvent.clientY - startY;
+        const dx = moveEvent.clientX - startX;
+        const dy = moveEvent.clientY - startY;
+        if (!moved && Math.hypot(dx, dy) < 3) return;
+        moved = true;
+        state.pan.x = startPan.x + dx;
+        state.pan.y = startPan.y + dy;
         positionStage();
       };
       const up = () => {
         els.canvasWrap.classList.remove('panning');
+        if (!moved) {
+          clearSelection();
+          renderLogos();
+          renderSelectedPanel();
+          renderLogoList();
+        }
         window.removeEventListener('pointermove', move);
         window.removeEventListener('pointerup', up);
       };
@@ -1317,10 +1333,16 @@ const state = {
         scheduleProjectSave();
       });
       els.canvasWrap.addEventListener('wheel', event => {
-        if (!event.ctrlKey && !event.metaKey) return;
         event.preventDefault();
-        const factor = Math.exp(-event.deltaY * 0.002);
-        setZoom(state.zoom * factor, event);
+        if (event.ctrlKey || event.metaKey) {
+          const factor = Math.exp(-event.deltaY * 0.002);
+          setZoom(state.zoom * factor, event);
+          return;
+        }
+        const unit = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 18 : event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? Math.min(innerWidth, innerHeight) : 1;
+        state.pan.x -= event.deltaX * unit;
+        state.pan.y -= event.deltaY * unit;
+        positionStage();
       }, { passive: false });
       els.gridModeBtn.addEventListener('click', () => {
         state.canvas.mode = 'grid';
@@ -1487,7 +1509,7 @@ const state = {
 
       els.stage.addEventListener('pointerdown', event => {
         if (isReadOnlyMode) return;
-        if (event.target === els.stage) {
+        if (event.target === els.stage && event.shiftKey) {
           startMarquee(event);
         }
       });
