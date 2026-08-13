@@ -519,21 +519,36 @@
       background-image:
         linear-gradient(rgba(255, 255, 255, .08), rgba(255, 255, 255, .08)),
         var(--template-photo);
-      background-size: cover;
+      background-size: 100% 100%;
       background-position: center;
+      background-repeat: no-repeat;
     }
 
     .stage.template-photo .grid-line { background: rgba(255, 196, 58, .28); }
     .stage.template-photo .division-line { background: rgba(255, 196, 58, .62); }
 
-    .template-hole {
+    .template-cell,
+    .template-ring {
       position: absolute;
-      z-index: 1;
-      border: 1px solid rgba(5, 48, 70, .42);
-      border-radius: 50%;
-      box-shadow: 0 0 0 1px rgba(255, 255, 255, .5) inset;
+      z-index: 2;
       pointer-events: none;
     }
+
+    .template-cell {
+      border: 1px solid rgba(52, 51, 60, .5);
+    }
+
+    .template-ring {
+      border: 1px solid rgba(52, 51, 60, .5);
+      border-radius: 50%;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, .5) inset;
+    }
+
+    .stage.dark .template-cell,
+    .stage.dark .template-ring { border-color: rgba(255, 255, 255, .62); }
+
+    .template-ring.ring-3 { background: rgba(52, 51, 60, .04); }
+    .stage.dark .template-ring.ring-3 { background: rgba(255, 255, 255, .05); }
 
     .read-only-mode .side input,
     .read-only-mode .side button,

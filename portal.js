@@ -4,10 +4,10 @@ const SESSION_KEY = 'scale-studio-guest-draft-v1';
 
 const spaces = [
   {
-    id: 'record-wall', name: '唱片墙', store: '上海店', widthCm: 192, heightCm: 288,
-    dimensions: ['6 × 9 单元', '单元 32 × 32 cm', '圆孔内径 26 cm'],
-    source: '用户提供照片与尺寸；整体尺寸由单元数量推导',
-    image: 'assets/shanghai-record-wall-calibrated.jpg', kind: 'photo'
+    id: 'record-wall', name: '唱片墙', store: '上海店', widthCm: 198, heightCm: 300,
+    dimensions: ['整体 198 × 300 cm', '6 × 9 单元', '单元 32 × 32 cm', '圆环 R13 / R9 / R6 cm'],
+    source: '施工尺寸图与实拍图已录入；实拍图已做正视校准',
+    image: 'assets/shanghai-record-wall-front-v2.png', kind: 'photo'
   },
   {
     id: 'peg-wall', name: '洞洞墙', store: '上海店', widthCm: 470, heightCm: 200,

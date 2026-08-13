@@ -68,12 +68,24 @@ const state = {
     const TEMPLATE_CONFIG = {
       'record-wall': {
         name: '上海店 · 唱片墙',
-        width: 1920,
-        height: 2880,
+        version: 2,
+        width: 1980,
+        height: 3000,
         divisions: 6,
-        gridStep: 320,
-        photo: 'assets/shanghai-record-wall-calibrated.jpg',
-        note: '6 × 9 单元 · 单元 320 mm · 圆孔内径 260 mm'
+        gridStep: 100,
+        canvasMode: 'solid',
+        background: 'white',
+        photo: 'assets/shanghai-record-wall-front-v2.png',
+        constructionImage: 'assets/shanghai-record-wall-construction.png',
+        geometry: {
+          columns: 6,
+          rows: 9,
+          cell: 320,
+          offsetX: 30,
+          offsetY: 60,
+          radii: [130, 90, 60]
+        },
+        note: '整体 1980 × 3000 mm · 6 × 9 单元 · 单元 320 mm · 圆环 R130 / R90 / R60'
       },
       'peg-wall': {
         name: '上海店 · 洞洞墙',
@@ -112,7 +124,9 @@ const state = {
         width: template.width,
         height: template.height,
         divisions: template.divisions,
-        gridStep: template.gridStep
+        gridStep: template.gridStep,
+        mode: template.canvasMode || DEFAULT_CANVAS.mode,
+        bg: template.background || DEFAULT_CANVAS.bg
       };
       state.zoom = template.id === 'record-wall' ? 0.18 : 0.14;
       state.template = template;
@@ -425,6 +439,26 @@ const state = {
     function applyProjectPayload(payload = {}) {
       state.canvas = { ...DEFAULT_CANVAS, ...payload.canvas };
       state.template = payload.template || activeTemplateFromUrl();
+      const currentTemplate = activeTemplateFromUrl();
+      if (currentTemplate && state.template?.id === currentTemplate.id && Number(state.template.version || 1) < Number(currentTemplate.version || 1)) {
+        const previousWidth = state.canvas.width || state.template.width || currentTemplate.width;
+        const previousHeight = state.canvas.height || state.template.height || currentTemplate.height;
+        const xOffset = (currentTemplate.width - previousWidth) / 2;
+        const yOffset = (currentTemplate.height - previousHeight) / 2;
+        state.canvas = {
+          ...state.canvas,
+          width: currentTemplate.width,
+          height: currentTemplate.height,
+          divisions: currentTemplate.divisions,
+          gridStep: currentTemplate.gridStep,
+          mode: currentTemplate.canvasMode || state.canvas.mode,
+          bg: currentTemplate.background || state.canvas.bg
+        };
+        state.template = currentTemplate;
+        if (Array.isArray(payload.logos)) {
+          payload.logos = payload.logos.map(logo => ({ ...logo, x: logo.x + xOffset, y: logo.y + yOffset }));
+        }
+      }
       state.viewMode = payload.viewMode || (state.template?.photo ? 'photo' : 'outline');
       state.zoom = clamp(Number(payload.zoom) || 0.2, MIN_ZOOM, MAX_ZOOM);
       state.pan = { x: 0, y: 0 };
@@ -478,6 +512,8 @@ const state = {
         portalState.projects[index] = {
           ...portalState.projects[index],
           name: project.name,
+          widthMm: project.payload.canvas.width,
+          heightMm: project.payload.canvas.height,
           updatedAt: project.updatedAt,
           editorPayload: project.payload
         };
@@ -562,7 +598,7 @@ const state = {
     }
 
     function renderGuides() {
-      els.stage.querySelectorAll('.grid-line, .division-line, .template-hole').forEach(node => node.remove());
+      els.stage.querySelectorAll('.grid-line, .division-line, .template-cell, .template-ring').forEach(node => node.remove());
       els.rulerTop.innerHTML = '';
       els.rulerLeft.innerHTML = '';
       els.rulerTop.style.width = screen(state.canvas.width);
@@ -578,22 +614,37 @@ const state = {
       }
 
       if (state.template?.id === 'record-wall' && state.viewMode === 'outline') {
-        for (let row = 0; row < 9; row += 1) {
-          for (let column = 0; column < 6; column += 1) {
-            const hole = document.createElement('div');
-            hole.className = 'template-hole';
-            hole.style.left = screen(column * 320 + 30);
-            hole.style.top = screen(row * 320 + 30);
-            hole.style.width = screen(260);
-            hole.style.height = screen(260);
-            els.stage.appendChild(hole);
+        const geometry = state.template.geometry;
+        for (let row = 0; row < geometry.rows; row += 1) {
+          for (let column = 0; column < geometry.columns; column += 1) {
+            const cellX = geometry.offsetX + column * geometry.cell;
+            const cellY = geometry.offsetY + row * geometry.cell;
+            const cell = document.createElement('div');
+            cell.className = 'template-cell';
+            cell.style.left = screen(cellX);
+            cell.style.top = screen(cellY);
+            cell.style.width = screen(geometry.cell);
+            cell.style.height = screen(geometry.cell);
+            els.stage.appendChild(cell);
+
+            geometry.radii.forEach((radius, index) => {
+              const ring = document.createElement('div');
+              ring.className = `template-ring ring-${index + 1}`;
+              ring.style.left = screen(cellX + geometry.cell / 2 - radius);
+              ring.style.top = screen(cellY + geometry.cell / 2 - radius);
+              ring.style.width = screen(radius * 2);
+              ring.style.height = screen(radius * 2);
+              els.stage.appendChild(ring);
+            });
           }
         }
       }
 
-      const part = state.canvas.width / state.canvas.divisions;
-      for (let i = 1; i < state.canvas.divisions; i++) {
-        addLine('division-line', part * i, 0, 2 / state.zoom, state.canvas.height);
+      if (state.template?.id !== 'record-wall') {
+        const part = state.canvas.width / state.canvas.divisions;
+        for (let i = 1; i < state.canvas.divisions; i++) {
+          addLine('division-line', part * i, 0, 2 / state.zoom, state.canvas.height);
+        }
       }
 
       const major = state.canvas.width > 3000 ? 500 : 250;
@@ -1249,24 +1300,33 @@ const state = {
         }
       }
 
-      ctx.strokeStyle = 'rgba(228,166,0,.85)';
-      ctx.lineWidth = 4;
-      const part = state.canvas.width / state.canvas.divisions;
-      for (let i = 1; i < state.canvas.divisions; i++) {
-        ctx.beginPath();
-        ctx.moveTo(part * i * scale, 0);
-        ctx.lineTo(part * i * scale, state.canvas.height * scale);
-        ctx.stroke();
+      if (state.template?.id !== 'record-wall') {
+        ctx.strokeStyle = 'rgba(228,166,0,.85)';
+        ctx.lineWidth = 4;
+        const part = state.canvas.width / state.canvas.divisions;
+        for (let i = 1; i < state.canvas.divisions; i++) {
+          ctx.beginPath();
+          ctx.moveTo(part * i * scale, 0);
+          ctx.lineTo(part * i * scale, state.canvas.height * scale);
+          ctx.stroke();
+        }
       }
 
       if (state.template?.id === 'record-wall' && state.viewMode === 'outline') {
-        ctx.strokeStyle = 'rgba(5,48,70,.46)';
-        ctx.lineWidth = 3;
-        for (let row = 0; row < 9; row += 1) {
-          for (let column = 0; column < 6; column += 1) {
-            ctx.beginPath();
-            ctx.arc((column * 320 + 160) * scale, (row * 320 + 160) * scale, 130 * scale, 0, Math.PI * 2);
-            ctx.stroke();
+        const geometry = state.template.geometry;
+        const stroke = state.canvas.bg === 'black' ? 'rgba(255,255,255,.62)' : 'rgba(52,51,60,.5)';
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = 2;
+        for (let row = 0; row < geometry.rows; row += 1) {
+          for (let column = 0; column < geometry.columns; column += 1) {
+            const x = geometry.offsetX + column * geometry.cell;
+            const y = geometry.offsetY + row * geometry.cell;
+            ctx.strokeRect(x * scale, y * scale, geometry.cell * scale, geometry.cell * scale);
+            geometry.radii.forEach(radius => {
+              ctx.beginPath();
+              ctx.arc((x + geometry.cell / 2) * scale, (y + geometry.cell / 2) * scale, radius * scale, 0, Math.PI * 2);
+              ctx.stroke();
+            });
           }
         }
       }
