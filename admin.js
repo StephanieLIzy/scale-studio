@@ -3,7 +3,7 @@ const ADMIN_SESSION_KEY = 'scale-studio-admin-unlocked-v1';
 const ADMIN_PASSWORD = 'ADMIN-DEMO';
 const adminApp = document.getElementById('adminApp');
 const adminSpaces = [
-  { id:'record-wall', name:'唱片墙', store:'上海店', widthMm:1980, heightMm:3000, size:'1980 × 3000 mm', status:'施工图、实拍与轮廓已录入', image:'assets/shanghai-record-wall-front-v2.png' },
+  { id:'record-wall', name:'唱片墙', store:'上海店', widthMm:1980, heightMm:3000, size:'1980 × 3000 mm', status:'施工图、实拍与轮廓已录入', image:'assets/shanghai-record-wall-front-v3.jpg' },
   { id:'peg-wall', name:'洞洞墙', store:'上海店', widthMm:4700, heightMm:2000, size:'4700 × 2000 mm', status:'实拍图待补', image:null },
   { id:'window-wall-mock', name:'临窗展示面', store:'上海店 · Mock', widthMm:3600, heightMm:2400, size:'3600 × 2400 mm', status:'等待真实资料替换', image:null }
 ];

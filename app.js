@@ -68,14 +68,14 @@ const state = {
     const TEMPLATE_CONFIG = {
       'record-wall': {
         name: '上海店 · 唱片墙',
-        version: 2,
+        version: 3,
         width: 1980,
         height: 3000,
         divisions: 6,
         gridStep: 100,
         canvasMode: 'solid',
         background: 'white',
-        photo: 'assets/shanghai-record-wall-front-v2.png',
+        photo: 'assets/shanghai-record-wall-front-v3.jpg',
         constructionImage: 'assets/shanghai-record-wall-construction.png',
         geometry: {
           columns: 6,
@@ -438,8 +438,11 @@ const state = {
 
     function applyProjectPayload(payload = {}) {
       state.canvas = { ...DEFAULT_CANVAS, ...payload.canvas };
-      state.template = payload.template || activeTemplateFromUrl();
       const currentTemplate = activeTemplateFromUrl();
+      state.template = payload.template || currentTemplate;
+      if (currentTemplate && state.template?.id === currentTemplate.id) {
+        state.template = { ...state.template, photo: currentTemplate.photo };
+      }
       if (currentTemplate && state.template?.id === currentTemplate.id && Number(state.template.version || 1) < Number(currentTemplate.version || 1)) {
         const previousWidth = state.canvas.width || state.template.width || currentTemplate.width;
         const previousHeight = state.canvas.height || state.template.height || currentTemplate.height;
