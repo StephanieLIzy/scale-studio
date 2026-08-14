@@ -46,10 +46,33 @@ function loadState() {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORE_KEY));
     if (!parsed) return defaultState();
+    const projects = Array.isArray(parsed.projects) ? parsed.projects.map(project => {
+      const space = spaces.find(item => item.id === project.spaceId);
+      if (!space) return project;
+      const expectedWidth = space.widthCm * 10;
+      const expectedHeight = space.heightCm * 10;
+      const hasLegacyDefault = project.widthMm === 4800 && project.heightMm === 2700;
+      const hasLegacyEditorDefault = project.editorPayload?.canvas?.width === 4800 && project.editorPayload?.canvas?.height === 2700;
+      const hasNoEditorCanvas = !project.editorPayload?.canvas;
+      if (!hasLegacyDefault && !hasLegacyEditorDefault && !hasNoEditorCanvas) return project;
+      return {
+        ...project,
+        widthMm: expectedWidth,
+        heightMm: expectedHeight,
+        editorPayload: project.editorPayload ? {
+          ...project.editorPayload,
+          canvas: {
+            ...(project.editorPayload.canvas || {}),
+            width: expectedWidth,
+            height: expectedHeight
+          }
+        } : project.editorPayload
+      };
+    }) : [];
     return {
       ...defaultState(), ...parsed,
       access: { ...defaultAccess(), ...(parsed.access || {}), members: parsed.access?.members || [] },
-      projects: Array.isArray(parsed.projects) ? parsed.projects : [],
+      projects,
       shares: Array.isArray(parsed.shares) ? parsed.shares : []
     };
   } catch { return defaultState(); }
@@ -261,7 +284,19 @@ function createProject(spaceId) {
   if (Date.now() > state.access.expiresAt) { toast('授权已过期，不能创建新项目。'); return; }
   if (state.projects.filter(project => project.memberId === state.member.id).length >= 20) { toast('每位成员最多创建 20 个项目。'); return; }
   const space = spaces.find(item => item.id === spaceId); if (!space) return;
-  const project = { id: id('prj'), memberId: state.member.id, name: `${space.name}方案`, spaceId, spaceName: space.name, widthMm: space.widthCm * 10, heightMm: space.heightCm * 10, createdAt: Date.now(), updatedAt: Date.now(), readOnly: false };
+  const widthMm = space.widthCm * 10;
+  const heightMm = space.heightCm * 10;
+  const project = {
+    id: id('prj'), memberId: state.member.id, name: `${space.name}方案`, spaceId, spaceName: space.name,
+    widthMm, heightMm, createdAt: Date.now(), updatedAt: Date.now(), readOnly: false,
+    editorPayload: {
+      version: 1,
+      canvas: { width: widthMm, height: heightMm },
+      template: { id: space.id, version: 0 },
+      viewMode: space.image ? 'photo' : 'outline',
+      logos: []
+    }
+  };
   state.projects.push(project); saveState();
   location.href = `editor.html?project=${encodeURIComponent(project.id)}&template=${encodeURIComponent(spaceId)}`;
 }

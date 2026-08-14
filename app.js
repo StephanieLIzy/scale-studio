@@ -311,6 +311,10 @@ const state = {
       els.outlineViewBtn.classList.toggle('active', state.viewMode === 'outline');
       els.photoViewBtn.classList.toggle('active', state.viewMode === 'photo');
       els.photoViewBtn.disabled = !state.template?.photo;
+      els.canvasW.disabled = Boolean(state.template);
+      els.canvasH.disabled = Boolean(state.template);
+      els.canvasW.title = state.template ? '店内模板尺寸由空间数据锁定' : '';
+      els.canvasH.title = state.template ? '店内模板尺寸由空间数据锁定' : '';
       positionStage();
     }
 
@@ -448,29 +452,31 @@ const state = {
     }
 
     function applyProjectPayload(payload = {}) {
-      state.canvas = { ...DEFAULT_CANVAS, ...payload.canvas };
       const currentTemplate = activeTemplateFromUrl();
       state.template = payload.template || currentTemplate;
       if (currentTemplate && state.template?.id === currentTemplate.id) {
-        state.template = { ...state.template, photo: currentTemplate.photo };
+        state.template = { ...state.template, ...currentTemplate };
       }
-      if (currentTemplate && state.template?.id === currentTemplate.id && Number(state.template.version || 1) < Number(currentTemplate.version || 1)) {
-        const previousWidth = state.canvas.width || state.template.width || currentTemplate.width;
-        const previousHeight = state.canvas.height || state.template.height || currentTemplate.height;
-        const xOffset = (currentTemplate.width - previousWidth) / 2;
-        const yOffset = (currentTemplate.height - previousHeight) / 2;
+      const savedCanvas = payload.canvas || null;
+      const staleTemplate = Boolean(currentTemplate && Number(payload.template?.version || 0) < Number(currentTemplate.version || 1));
+      state.canvas = { ...DEFAULT_CANVAS, ...(savedCanvas || {}) };
+
+      if (currentTemplate) {
+        const previousWidth = savedCanvas?.width;
+        const previousHeight = savedCanvas?.height;
+        const migrateCentered = staleTemplate && currentTemplate.id === 'record-wall' && previousWidth === 1920 && previousHeight === 2880;
         state.canvas = {
           ...state.canvas,
           width: currentTemplate.width,
           height: currentTemplate.height,
           divisions: currentTemplate.divisions,
           gridStep: currentTemplate.gridStep,
-          mode: currentTemplate.canvasMode || state.canvas.mode,
-          bg: currentTemplate.background || state.canvas.bg
+          mode: currentTemplate.canvasMode || DEFAULT_CANVAS.mode,
+          bg: currentTemplate.background || DEFAULT_CANVAS.bg
         };
         state.template = currentTemplate;
-        if (Array.isArray(payload.logos)) {
-          payload.logos = payload.logos.map(logo => ({ ...logo, x: logo.x + xOffset, y: logo.y + yOffset }));
+        if (migrateCentered && Array.isArray(payload.logos)) {
+          payload.logos = payload.logos.map(logo => ({ ...logo, x: logo.x + 30, y: logo.y + 60 }));
         }
       }
       state.viewMode = payload.viewMode || (state.template?.photo ? 'photo' : 'outline');
@@ -555,6 +561,10 @@ const state = {
           if (existing) {
             state.activeProjectId = existing.id;
             applyProjectPayload(existing.payload);
+            existing.payload = canvasPayload();
+            existing.updatedAt = Date.now();
+            await writeProject(existing);
+            syncPortalProject(existing);
             return;
           }
           state.canvas = { ...DEFAULT_CANVAS };
@@ -1383,11 +1393,13 @@ const state = {
 
     function wireInputs() {
       els.canvasW.addEventListener('input', event => {
+        if (state.template) return;
         state.canvas.width = Math.max(100, Number(event.target.value) || 4800);
         render();
         scheduleProjectSave();
       });
       els.canvasH.addEventListener('input', event => {
+        if (state.template) return;
         state.canvas.height = Math.max(100, Number(event.target.value) || 2700);
         render();
         scheduleProjectSave();
