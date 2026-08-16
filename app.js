@@ -1020,10 +1020,6 @@ const state = {
         setProjectStatus('单张图片不能超过 15 MB。');
         return;
       }
-      if (state.logos.length + imageFiles.length > 30) {
-        setProjectStatus('单个项目最多放置 30 个物料。');
-        return;
-      }
       const startCount = state.logos.length;
       const columns = 8;
       const gapX = 150;
